@@ -20,7 +20,7 @@ cp .env.example .env
 npm run dev
 ```
 
-The Vite frontend runs on its development port. The Express token API runs separately on port 3000; configure a development proxy in `vite.config.js` or run the frontend and API behind the same origin before testing. For production, build with `npm run build` and run with `npm start` after setting `NODE_ENV=production`.
+The `npm run dev` command starts both the Vite frontend and Express token API; Vite proxies `/api` requests to the API on port 3000. For production, build with `npm run build` and run with `npm start` after setting `NODE_ENV=production`.
 
 ## Deployment requirements
 Deploy this as a Node.js web service (not a static-only site), set `NODE_ENV=production`, and add the three LiveKit environment variables. Never commit real API secrets.
