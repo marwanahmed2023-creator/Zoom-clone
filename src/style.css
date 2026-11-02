@@ -235,3 +235,23 @@
   .call-dialog { padding: 30px 22px; }
   .saved-profile { font-size: 9px; }
 }
+
+
+/* Explicit permission controls and notification settings */
+.media-permission {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  gap: 12px; padding: 10px; background: #243247; color: #fff; font-size: 12px;
+}
+.media-permission button, .notification-row button {
+  border: 0; border-radius: 8px; padding: 9px 12px; background: #4169f5;
+  color: white; font-weight: 700; cursor: pointer;
+}
+.meeting-error { flex: 0 0 auto; margin: 0; padding: 9px 14px; background: #fff1f2; }
+.notification-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 18px; padding: 12px; border: 1px solid #e9ebf2; border-radius: 10px;
+}
+.notification-row div { display: grid; gap: 4px; }
+.notification-row strong { font-size: 12px; }
+.notification-row span { font-size: 10px; color: #8a92a4; }
+.notification-row button:disabled { opacity: .65; cursor: default; }
