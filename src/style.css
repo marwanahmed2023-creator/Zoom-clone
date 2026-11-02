@@ -255,3 +255,40 @@
 .notification-row strong { font-size: 12px; }
 .notification-row span { font-size: 10px; color: #8a92a4; }
 .notification-row button:disabled { opacity: .65; cursor: default; }
+
+
+/* Saved contacts */
+.contact-add {
+  display: flex; gap: 8px; margin-top: 9px;
+}
+.contact-add input { min-width: 0; height: 40px; font-size: 12px; }
+.contact-add button, .contact-call, .contact-remove {
+  border: 0; border-radius: 8px; cursor: pointer; font-weight: 700;
+}
+.contact-add button {
+  padding: 0 14px; background: #edf1ff; color: #4169f5; font-size: 12px;
+}
+.contact-add button:disabled { opacity: .45; cursor: default; }
+.contacts-list {
+  margin-top: 15px; padding: 12px; border: 1px solid #edf0f5;
+  border-radius: 11px; background: #fbfcff;
+}
+.contacts-heading {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px; color: #8a92a4; font-size: 9px; font-weight: 800; letter-spacing: 1px;
+}
+.contacts-heading span { color: #4169f5; }
+.contact-item { display: flex; align-items: center; gap: 7px; padding: 6px 0; }
+.contact-item + .contact-item { border-top: 1px solid #edf0f5; }
+.contact-name {
+  display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0;
+  padding: 0; border: 0; background: transparent; color: #27334a;
+  text-align: left; font: 600 12px 'DM Sans', sans-serif; cursor: pointer;
+}
+.contact-name > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contact-avatar {
+  display: grid; place-items: center; flex: 0 0 30px; height: 30px;
+  border-radius: 50%; background: #e9eeff; color: #4169f5; font-weight: 800;
+}
+.contact-call { padding: 7px 10px; background: #4169f5; color: #fff; font-size: 10px; }
+.contact-remove { width: 27px; height: 27px; background: #fff0f1; color: #d34b58; font-size: 18px; }
