@@ -4,8 +4,6 @@ self.addEventListener("push", event => {
   const title = data.title || "Incoming Meet call";
   const options = {
     body: data.body || "Someone is calling you.",
-    icon: "/meet-icon.png",
-    badge: "/meet-icon.png",
     tag: "meet-incoming-call",
     renotify: true,
     data: { url: data.url || "/" }
