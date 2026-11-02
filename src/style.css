@@ -105,3 +105,70 @@
     gap: 5px;
   }
 }
+
+
+/* Dedicated presentation fullscreen: keep only the focused shared-screen tile. */
+.meeting .screen-only {
+  margin-left: auto;
+  background: #263449;
+  color: #fff;
+  border: 1px solid #64748b;
+  border-radius: 7px;
+  padding: 9px 13px;
+  font: 600 12px 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+.meeting .screen-only:hover { background: #3b4b63; }
+.meeting .leave { margin-left: 0; }
+
+.lk-focus-layout-wrapper:fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483000 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #000 !important;
+}
+.lk-focus-layout-wrapper:fullscreen .lk-focus-layout {
+  display: flex !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  background: #000 !important;
+}
+.lk-focus-layout-wrapper:fullscreen .lk-carousel,
+.lk-focus-layout-wrapper:fullscreen .lk-participant-metadata,
+.lk-focus-layout-wrapper:fullscreen .lk-focus-toggle-button {
+  display: none !important;
+}
+.lk-focus-layout-wrapper:fullscreen .lk-participant-tile {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #000 !important;
+}
+.lk-focus-layout-wrapper:fullscreen .lk-video-container,
+.lk-focus-layout-wrapper:fullscreen video {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  background: #000 !important;
+}
+.meeting:has(.lk-focus-layout-wrapper:fullscreen) .meeting-head {
+  display: none !important;
+}
+.meeting:has(.lk-focus-layout-wrapper:fullscreen) .lk-control-bar,
+.meeting:has(.lk-focus-layout-wrapper:fullscreen) .lk-chat {
+  display: none !important;
+}
+@media (max-width: 600px) {
+  .meeting .screen-only { padding: 8px 9px; font-size: 11px; white-space: nowrap; }
+}
