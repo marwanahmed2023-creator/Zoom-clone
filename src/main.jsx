@@ -11,13 +11,19 @@ function MediaPermissionButton({ onStatus }) {
     setWorking(true);
     onStatus('');
     try {
-      await room.localParticipant.setCameraEnabled(true);
-      await room.localParticipant.setMicrophoneEnabled(true);
+      // Request camera and microphone together in one browser permission flow.
+      await room.localParticipant.enableCameraAndMicrophone();
       onStatus('Camera and microphone are enabled.');
     } catch (err) {
       const name = err?.name || 'Error';
       const detail = err?.message || 'The browser or device blocked access.';
-      onStatus(name + ': ' + detail);
+      const cameraError = room.localParticipant.lastCameraError;
+      const microphoneError = room.localParticipant.lastMicrophoneError;
+      const deviceDetails = [
+        cameraError ? 'Camera: ' + (cameraError.name || cameraError.message) : '',
+        microphoneError ? 'Microphone: ' + (microphoneError.name || microphoneError.message) : ''
+      ].filter(Boolean).join(' · ');
+      onStatus(name + ': ' + detail + (deviceDetails ? ' — ' + deviceDetails : ''));
     } finally {
       setWorking(false);
     }
@@ -260,7 +266,11 @@ function App() {
         token={token}
         serverUrl={url}
         connect={true}
-        onError={(err) => setMeetingError('LiveKit connection error: ' + (err?.message || 'Unknown error'))}
+        onError={(err) => setMeetingError('LiveKit connection error: ' + (err?.name ? err.name + ': ' : '') + (err?.message || 'Unknown error'))}
+        onMediaDeviceFailure={(failure, kind) => {
+          const device = kind === 'videoinput' ? 'Camera' : kind === 'audioinput' ? 'Microphone' : 'Camera or microphone';
+          setMeetingError(device + ' access failed (' + (failure || 'unknown reason') + '). Use the Allow camera & microphone button and check that the device is not blocked by the operating system or another app.');
+        }}
         onDisconnected={() => {
           if (!leavingRef.current) setMeetingError('You were disconnected from the meeting. You can leave and rejoin from the home screen.');
         }}
