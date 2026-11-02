@@ -189,3 +189,49 @@
   font-weight: 700;
   white-space: nowrap;
 }
+
+
+/* Direct-call controls and incoming-call screen */
+.join-card form { margin: 0; }
+.join-card form label { display: block; font-size: 12px; font-weight: 700; margin: 16px 0 8px; }
+.join-card .secondary {
+  width: 100%; height: 46px; margin-top: 12px; border: 1px solid #dce2f0;
+  border-radius: 9px; background: #f7f8fc; color: #35415b; font-weight: 700;
+  cursor: pointer; font-size: 13px;
+}
+.join-card .secondary span { float: right; margin-right: 12px; }
+.join-card .secondary:disabled { opacity: .65; }
+.or-divider { display: flex; align-items: center; gap: 12px; margin: 22px 0 5px; color: #a0a7b5; font-size: 9px; letter-spacing: 1.2px; font-weight: 700; }
+.or-divider:before, .or-divider:after { content: ""; height: 1px; background: #edf0f5; flex: 1; }
+.call-overlay {
+  position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center;
+  padding: 20px; background: #101828b8; backdrop-filter: blur(7px);
+}
+.call-dialog {
+  width: min(100%, 360px); padding: 34px 28px; border-radius: 22px;
+  background: #fff; text-align: center; box-shadow: 0 25px 80px #0004;
+  animation: call-pop .2s ease-out;
+}
+@keyframes call-pop { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+.call-avatar {
+  width: 76px; height: 76px; margin: 0 auto 20px; border-radius: 50%;
+  display: grid; place-items: center; background: #4169f5; color: white;
+  font: 800 32px Manrope, sans-serif; box-shadow: 0 0 0 9px #4169f514;
+}
+.call-avatar.ringing { font-size: 28px; }
+.call-kicker { color: #4169f5; font-size: 10px; font-weight: 800; letter-spacing: 2px; }
+.call-dialog h2 { margin: 9px 0 4px; color: #172033; font: 800 25px Manrope, sans-serif; }
+.call-dialog p { margin: 0; color: #8992a5; font-size: 13px; }
+.call-actions { display: flex; gap: 12px; margin-top: 28px; }
+.call-actions button, .cancel-call {
+  flex: 1; min-height: 46px; border: 0; border-radius: 10px;
+  color: #fff; font: 700 13px 'DM Sans', sans-serif; cursor: pointer;
+}
+.decline-call { background: #e34c5c; }
+.accept-call { background: #159b69; }
+.call-actions button:disabled { opacity: .6; }
+.cancel-call { width: 100%; margin-top: 26px; }
+@media(max-width:520px) {
+  .call-dialog { padding: 30px 22px; }
+  .saved-profile { font-size: 9px; }
+}
