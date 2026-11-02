@@ -1,8 +1,19 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { LiveKitRoom, VideoConference } from '@livekit/components-react';
+import { LiveKitRoom, VideoConference, useParticipants } from '@livekit/components-react';
 import '@livekit/components-styles';
 import './style.css';
+
+function AutoSaveMeetingContacts({ currentName, onRemember }) {
+  const participants = useParticipants();
+  React.useEffect(() => {
+    participants.forEach(participant => {
+      const displayName = String(participant.name || participant.identity || '').trim();
+      if (displayName && displayName.toLowerCase() !== currentName.trim().toLowerCase()) onRemember(displayName);
+    });
+  }, [participants, currentName, onRemember]);
+  return null;
+}
 
 function App() {
   const [room, setRoom] = React.useState('');
@@ -15,7 +26,6 @@ function App() {
     catch { return false; }
   });
   const [callTarget, setCallTarget] = React.useState('');
-  const [contactDraft, setContactDraft] = React.useState('');
   const [contacts, setContacts] = React.useState(() => {
     try { return JSON.parse(localStorage.getItem('meet-contacts') || '[]').filter(x => typeof x === 'string'); }
     catch { return []; }
@@ -99,17 +109,16 @@ function App() {
     finally { setBusy(false); }
   }
 
-  function addContact(e) {
-    e?.preventDefault();
-    const contact = contactDraft.trim().slice(0, 40);
+  const rememberContact = React.useCallback((value) => {
+    const contact = value.trim().slice(0, 40);
     if (!contact || contact.toLowerCase() === name.trim().toLowerCase()) return;
     setContacts(previous => {
-      const next = [...previous.filter(x => x.toLowerCase() !== contact.toLowerCase()), contact].slice(-30);
+      if (previous.some(x => x.toLowerCase() === contact.toLowerCase())) return previous;
+      const next = [...previous, contact].slice(-100);
       try { localStorage.setItem('meet-contacts', JSON.stringify(next)); } catch {}
       return next;
     });
-    setContactDraft('');
-  }
+  }, [name]);
 
   function removeContact(contact) {
     setContacts(previous => {
@@ -270,6 +279,7 @@ function App() {
           if (!leavingRef.current) setMeetingError('You were disconnected from the meeting. You can leave and rejoin from the home screen.');
         }}
       >
+        <AutoSaveMeetingContacts currentName={name} onRemember={rememberContact} />
         <VideoConference />
       </LiveKitRoom>
     </div>;
@@ -296,20 +306,16 @@ function App() {
         <form onSubmit={startCall}>
           <label>Call someone</label>
           <input value={callTarget} onChange={e=>setCallTarget(e.target.value)} placeholder="Enter their display name" maxLength="40"/>
-          <div className="contact-add">
-            <input value={contactDraft} onChange={e=>setContactDraft(e.target.value)} placeholder="Add a contact by display name" maxLength="40"/>
-            <button type="button" onClick={addContact} disabled={!contactDraft.trim()}>Add</button>
-          </div>
-          {contacts.length > 0 && <div className="contacts-list">
-            <div className="contacts-heading">YOUR CONTACTS <span>{contacts.length}</span></div>
-            {contacts.map(contact => <div className="contact-item" key={contact}>
+          <div className="contacts-list">
+            <div className="contacts-heading">SAVED CONTACTS <span>{contacts.length}</span></div>
+            {contacts.length === 0 ? <p className="contacts-empty">People you meet will appear here automatically.</p> : contacts.map(contact => <div className="contact-item" key={contact}>
               <button type="button" className="contact-name" onClick={()=>setCallTarget(contact)} title="Select contact to call">
                 <span className="contact-avatar">{contact.slice(0,1).toUpperCase()}</span><span>{contact}</span>
               </button>
-              <button type="button" className="contact-call" onClick={()=>setCallTarget(contact)}>Select</button>
+              <button type="button" className="contact-call" onClick={()=>setCallTarget(contact)}>Call</button>
               <button type="button" className="contact-remove" onClick={()=>removeContact(contact)} aria-label={"Remove " + contact}>×</button>
             </div>)}
-          </div>}
+          </div>
           <button className="primary" disabled={busy}>{busy?'Please wait…':'Call'} <span>☎</span></button>
         </form>
         <div className="or-divider"><span>OR JOIN WITH A CODE</span></div>
