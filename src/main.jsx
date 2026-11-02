@@ -1,8 +1,32 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { LiveKitRoom, VideoConference } from '@livekit/components-react';
+import { LiveKitRoom, VideoConference, useRoomContext } from '@livekit/components-react';
 import '@livekit/components-styles';
 import './style.css';
+
+function MediaPermissionButton({ onStatus }) {
+  const room = useRoomContext();
+  const [working, setWorking] = React.useState(false);
+  async function enableDevices() {
+    setWorking(true);
+    onStatus('');
+    try {
+      await room.localParticipant.setCameraEnabled(true);
+      await room.localParticipant.setMicrophoneEnabled(true);
+      onStatus('Camera and microphone are enabled.');
+    } catch (err) {
+      const name = err?.name || 'Error';
+      const detail = err?.message || 'The browser or device blocked access.';
+      onStatus(name + ': ' + detail);
+    } finally {
+      setWorking(false);
+    }
+  }
+  return <div className="media-permission">
+    <span>Camera and microphone are off.</span>
+    <button onClick={enableDevices} disabled={working}>{working ? 'Requesting access…' : 'Allow camera & microphone'}</button>
+  </div>;
+}
 
 function App() {
   const [room, setRoom] = React.useState('');
@@ -52,31 +76,12 @@ function App() {
     else setError(permission === 'denied' ? 'Notifications are blocked for this site. Allow them in browser site settings.' : 'Notification permission was not granted.');
   }
 
-  async function enableMeetingMedia() {
-    setMeetingError('');
-    if (!navigator.mediaDevices?.getUserMedia) return setMeetingError('Camera and microphone access is unavailable in this browser.');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      stream.getTracks().forEach(track => track.stop());
-      setMediaReady(true);
-    } catch (err) {
-      const msg = err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError'
-        ? 'Camera or microphone permission was denied. Check this site’s camera and microphone permissions.'
-        : err?.name === 'NotFoundError'
-        ? 'No camera or microphone was found.'
-        : err?.name === 'NotReadableError'
-        ? 'The camera or microphone is busy in another app.'
-        : (err?.message || 'Could not access the camera or microphone.');
-      setMeetingError(msg);
-    }
-  }
 
   function leaveMeeting() {
     leavingRef.current = true;
     setToken('');
     setUrl('');
     setRoom('');
-    setMediaReady(false);
     setMeetingError('');
     setError('');
     setCallMode(null);
@@ -247,28 +252,20 @@ function App() {
         <div className="brand"><span className="brand-icon">m</span> meet<span className="live">LIVE</span></div>
         <div className="room-label">Meeting · {room}</div>
         <button className="screen-only" onClick={showSharedScreenFullscreen} title="Show only the shared screen">Screen only ⛶</button>
-        <button className="leave" onClick={leaveMeeting}>Leave meeting</button>
+        <button className="leave" onClick={() => window.location.reload()}>Leave meeting</button>
       </header>
       {meetingError && <div className="error meeting-error" role="alert">{meetingError}</div>}
-      {!mediaReady && <div className="media-permission">
-        <span>Camera and microphone are off.</span>
-        <button onClick={enableMeetingMedia}>Allow camera & microphone</button>
-      </div>}
       <LiveKitRoom
         data-lk-theme="default"
         token={token}
         serverUrl={url}
         connect={true}
-        // Join without requesting devices after the async token fetch.
-        // The user can enable camera/mic from LiveKit's controls, which is a
-        // direct browser interaction and can trigger the permission prompt.
-        video={mediaReady}
-        audio={mediaReady}
         onError={(err) => setMeetingError('LiveKit connection error: ' + (err?.message || 'Unknown error'))}
         onDisconnected={() => {
           if (!leavingRef.current) setMeetingError('You were disconnected from the meeting. You can leave and rejoin from the home screen.');
         }}
       >
+        <MediaPermissionButton onStatus={setMeetingError} />
         <VideoConference />
       </LiveKitRoom>
     </div>;
