@@ -15,6 +15,11 @@ function App() {
     catch { return false; }
   });
   const [callTarget, setCallTarget] = React.useState('');
+  const [contactDraft, setContactDraft] = React.useState('');
+  const [contacts, setContacts] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem('meet-contacts') || '[]').filter(x => typeof x === 'string'); }
+    catch { return []; }
+  });
   const [incoming, setIncoming] = React.useState(null);
   const [dismissedCalls, setDismissedCalls] = React.useState(() => {
     try { return JSON.parse(localStorage.getItem('meet-dismissed-calls') || '[]'); }
@@ -92,6 +97,26 @@ function App() {
     try { await joinRoom(roomName); }
     catch (err) { setError(err.message + ' Check that the server and LiveKit keys are configured.'); }
     finally { setBusy(false); }
+  }
+
+  function addContact(e) {
+    e?.preventDefault();
+    const contact = contactDraft.trim().slice(0, 40);
+    if (!contact || contact.toLowerCase() === name.trim().toLowerCase()) return;
+    setContacts(previous => {
+      const next = [...previous.filter(x => x.toLowerCase() !== contact.toLowerCase()), contact].slice(-30);
+      try { localStorage.setItem('meet-contacts', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    setContactDraft('');
+  }
+
+  function removeContact(contact) {
+    setContacts(previous => {
+      const next = previous.filter(x => x !== contact);
+      try { localStorage.setItem('meet-contacts', JSON.stringify(next)); } catch {}
+      return next;
+    });
   }
 
   async function startCall(e) {
@@ -271,6 +296,20 @@ function App() {
         <form onSubmit={startCall}>
           <label>Call someone</label>
           <input value={callTarget} onChange={e=>setCallTarget(e.target.value)} placeholder="Enter their display name" maxLength="40"/>
+          <div className="contact-add">
+            <input value={contactDraft} onChange={e=>setContactDraft(e.target.value)} placeholder="Add a contact by display name" maxLength="40"/>
+            <button type="button" onClick={addContact} disabled={!contactDraft.trim()}>Add</button>
+          </div>
+          {contacts.length > 0 && <div className="contacts-list">
+            <div className="contacts-heading">YOUR CONTACTS <span>{contacts.length}</span></div>
+            {contacts.map(contact => <div className="contact-item" key={contact}>
+              <button type="button" className="contact-name" onClick={()=>setCallTarget(contact)} title="Select contact to call">
+                <span className="contact-avatar">{contact.slice(0,1).toUpperCase()}</span><span>{contact}</span>
+              </button>
+              <button type="button" className="contact-call" onClick={()=>setCallTarget(contact)}>Select</button>
+              <button type="button" className="contact-remove" onClick={()=>removeContact(contact)} aria-label={"Remove " + contact}>×</button>
+            </div>)}
+          </div>}
           <button className="primary" disabled={busy}>{busy?'Please wait…':'Call'} <span>☎</span></button>
         </form>
         <div className="or-divider"><span>OR JOIN WITH A CODE</span></div>
