@@ -39,11 +39,26 @@ function App() {
     }
   }
 
+  async function showSharedScreenFullscreen() {
+    const focusWrapper = document.querySelector('.lk-focus-layout-wrapper');
+    const focusedScreen = focusWrapper?.querySelector('.lk-focus-layout .lk-participant-tile video');
+    if (!focusWrapper || !focusedScreen) {
+      setMeetingError('Start sharing your screen first, then choose Screen only.');
+      return;
+    }
+    try {
+      await focusWrapper.requestFullscreen();
+    } catch (err) {
+      setMeetingError('Could not enter fullscreen: ' + (err?.message || 'Your browser blocked fullscreen.'));
+    }
+  }
+
   if (token) {
     return <div className="meeting">
       <header className="meeting-head">
         <div className="brand"><span className="brand-icon">m</span> meet<span className="live">LIVE</span></div>
         <div className="room-label">Meeting · {room}</div>
+        <button className="screen-only" onClick={showSharedScreenFullscreen} title="Show only the shared screen">Screen only ⛶</button>
         <button className="leave" onClick={() => { setToken(''); setMeetingError(''); }}>Leave meeting</button>
       </header>
       {meetingError && <div className="error" role="alert">{meetingError}</div>}
