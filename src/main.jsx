@@ -48,6 +48,7 @@ function App() {
       </header>
       {meetingError && <div className="error" role="alert">{meetingError}</div>}
       <LiveKitRoom
+        data-lk-theme="default"
         token={token}
         serverUrl={url}
         connect={true}
