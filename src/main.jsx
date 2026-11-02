@@ -1,38 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { LiveKitRoom, VideoConference, useRoomContext } from '@livekit/components-react';
+import { LiveKitRoom, VideoConference } from '@livekit/components-react';
 import '@livekit/components-styles';
 import './style.css';
-
-function MediaPermissionButton({ onStatus }) {
-  const room = useRoomContext();
-  const [working, setWorking] = React.useState(false);
-  async function enableDevices() {
-    setWorking(true);
-    onStatus('');
-    try {
-      // Request camera and microphone together in one browser permission flow.
-      await room.localParticipant.enableCameraAndMicrophone();
-      onStatus('Camera and microphone are enabled.');
-    } catch (err) {
-      const name = err?.name || 'Error';
-      const detail = err?.message || 'The browser or device blocked access.';
-      const cameraError = room.localParticipant.lastCameraError;
-      const microphoneError = room.localParticipant.lastMicrophoneError;
-      const deviceDetails = [
-        cameraError ? 'Camera: ' + (cameraError.name || cameraError.message) : '',
-        microphoneError ? 'Microphone: ' + (microphoneError.name || microphoneError.message) : ''
-      ].filter(Boolean).join(' · ');
-      onStatus(name + ': ' + detail + (deviceDetails ? ' — ' + deviceDetails : ''));
-    } finally {
-      setWorking(false);
-    }
-  }
-  return <div className="media-permission">
-    <span>Camera and microphone are off.</span>
-    <button onClick={enableDevices} disabled={working}>{working ? 'Requesting access…' : 'Allow camera & microphone'}</button>
-  </div>;
-}
 
 function App() {
   const [room, setRoom] = React.useState('');
@@ -275,7 +245,6 @@ function App() {
           if (!leavingRef.current) setMeetingError('You were disconnected from the meeting. You can leave and rejoin from the home screen.');
         }}
       >
-        <MediaPermissionButton onStatus={setMeetingError} />
         <VideoConference />
       </LiveKitRoom>
     </div>;
@@ -311,12 +280,10 @@ function App() {
           <button className="secondary" disabled={busy}>Start / Join meeting <span>→</span></button>
         </form>
         {error&&<div className="error" role="alert">{error}</div>}
-        <div className="notification-row">
-          <div><strong>Incoming call alerts</strong><span>{notificationPermission === 'granted' ? 'Notifications enabled' : notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Allow alerts while this page is open'}</span></div>
-          <button type="button" onClick={enableNotifications} disabled={notificationPermission === 'granted' || notificationPermission === 'unsupported'}>
-            {notificationPermission === 'granted' ? 'Enabled' : 'Enable notifications'}
-          </button>
-        </div>
+        {notificationPermission !== 'granted' && notificationPermission !== 'unsupported' && <div className="notification-row">
+          <div><strong>Incoming call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Allow alerts while this page is open'}</span></div>
+          <button type="button" onClick={enableNotifications}>Enable notifications</button>
+        </div>}
         <div className="secure">Your name is remembered on this device. No password or account needed.</div>
       </div>
     </section>
