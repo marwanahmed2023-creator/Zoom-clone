@@ -1,4 +1,5 @@
 import { AccessToken } from "livekit-server-sdk";
+import { sendCallPush } from "../_push.js";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -102,6 +103,7 @@ export async function onRequestPost({ request, env }) {
         maxParticipants: 2,
         metadata,
       });
+      await sendCallPush(env, callee, caller, room);
       return json({ room });
     }
 

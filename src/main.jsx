@@ -42,6 +42,7 @@ function App() {
   const [error, setError] = React.useState('');
   const [meetingError, setMeetingError] = React.useState('');
   const [notificationPermission, setNotificationPermission] = React.useState(() => typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
+  const [pushReady, setPushReady] = React.useState(false);
   const [mediaReady, setMediaReady] = React.useState(false);
   const leavingRef = React.useRef(false);
   const notifiedCallRef = React.useRef('');
@@ -59,12 +60,48 @@ function App() {
     } catch { setProfileSaved(false); }
   }, [name]);
 
+  function urlBase64ToUint8Array(value) {
+    const padding = '='.repeat((4 - value.length % 4) % 4);
+    const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+    return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  }
+
   async function enableNotifications() {
-    if (!('Notification' in window)) return setError('This browser does not support notifications.');
-    const permission = await Notification.requestPermission();
-    setNotificationPermission(permission);
-    if (permission === 'granted') setError('');
-    else setError(permission === 'denied' ? 'Notifications are blocked for this site. Allow them in browser site settings.' : 'Notification permission was not granted.');
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return setError('Background notifications are not supported by this browser.');
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission !== 'granted') {
+        return setError(permission === 'denied' ? 'Notifications are blocked for this site. Allow them in browser settings.' : 'Notification permission was not granted.');
+      }
+      if (!name.trim()) return setError('Enter and save your display name first.');
+      const configResponse = await fetch('/api/push/config', { cache: 'no-store' });
+      const config = await configResponse.json();
+      if (!configResponse.ok || !config.publicKey) throw Error(config.error || 'Push notifications are not configured on the server yet.');
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(config.publicKey)
+        });
+      }
+      const saved = await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identity: name.trim(), subscription: subscription.toJSON() })
+      });
+      const result = await saved.json();
+      if (!saved.ok) throw Error(result.error || 'Could not save this device for call alerts.');
+      setPushReady(true);
+      setError('');
+    } catch (err) {
+      setPushReady(false);
+      setError(err.message || 'Could not enable background call alerts.');
+    }
   }
 
 
@@ -194,13 +231,7 @@ function App() {
           const nextCall = d.calls.find(call => !dismissedCalls.includes(call.room));
           if (nextCall) {
             setIncoming(nextCall);
-            if (notificationPermission === 'granted' && notifiedCallRef.current !== nextCall.room) {
-              notifiedCallRef.current = nextCall.room;
-              try {
-                const notice = new Notification('Incoming meet call', { body: nextCall.caller + ' is calling you.' });
-                notice.onclick = () => { window.focus(); notice.close(); };
-              } catch {}
-            }
+
           }
         }
       } catch {}
@@ -325,9 +356,9 @@ function App() {
           <button className="secondary" disabled={busy}>Start / Join meeting <span>→</span></button>
         </form>
         {error&&<div className="error" role="alert">{error}</div>}
-        {notificationPermission !== 'granted' && notificationPermission !== 'unsupported' && <div className="notification-row">
-          <div><strong>Incoming call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Allow alerts while this page is open'}</span></div>
-          <button type="button" onClick={enableNotifications}>Enable notifications</button>
+        {notificationPermission !== 'unsupported' && !pushReady && <div className="notification-row">
+          <div><strong>Background call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Set up alerts when Meet is closed'}</span></div>
+          <button type="button" onClick={enableNotifications}>{notificationPermission === 'granted' ? 'Finish setup' : 'Enable notifications'}</button>
         </div>}
         <div className="secure">Your name is remembered on this device. No password or account needed.</div>
       </div>

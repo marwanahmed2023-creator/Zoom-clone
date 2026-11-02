@@ -292,3 +292,9 @@
 }
 .contact-call { padding: 7px 10px; background: #4169f5; color: #fff; font-size: 10px; }
 .contact-remove { width: 27px; height: 27px; background: #fff0f1; color: #d34b58; font-size: 18px; }
+
+/* Keep the single Leave meeting action in the top header. */
+.meeting .lk-disconnect-button,
+.meeting .lk-button[data-lk-source="disconnect"],
+.meeting button[aria-label*="Leave" i] { display: none !important; }
+.contacts-empty { margin: 8px 0 2px; color: #8992a5; font-size: 11px; }
