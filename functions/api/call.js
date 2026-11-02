@@ -22,7 +22,16 @@ async function serviceRequest(env, method, body) {
   if (!key || !secret || !wsUrl) throw new Error("LiveKit is not configured.");
   const base = wsUrl.replace(/^wss:/, "https:").replace(/\/$/, "");
   const access = new AccessToken(key, secret, { identity: "meet-call-service", ttl: "5m" });
-  access.addGrant({ roomCreate: true, roomList: true, roomAdmin: true });
+  // Room-admin operations must be scoped to the exact room being updated.
+  const grant = {};
+  if (method === "CreateRoom") grant.roomCreate = true;
+  if (method === "ListRooms") grant.roomList = true;
+  if (method === "UpdateRoomMetadata") {
+    grant.roomAdmin = true;
+    grant.room = clean(body.room, 100);
+    if (!grant.room) throw new Error("A room name is required to update call status.");
+  }
+  access.addGrant(grant);
   const jwt = await access.toJwt();
   const response = await fetch(base + "/twirp/livekit.RoomService/" + method, {
     method: "POST",
