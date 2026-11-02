@@ -81,10 +81,11 @@ function App() {
     setError('');
     setCallMode(null);
     setIncoming(null);
-    window.setTimeout(() => { leavingRef.current = false; }, 1200);
+    // Keep the intentional-leave flag set until the next room is joined.
   }
 
   async function joinRoom(roomName) {
+    leavingRef.current = false;
     const r = await fetch('/api/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
