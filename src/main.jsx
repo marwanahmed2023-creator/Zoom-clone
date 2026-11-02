@@ -16,6 +16,10 @@ function App() {
   });
   const [callTarget, setCallTarget] = React.useState('');
   const [incoming, setIncoming] = React.useState(null);
+  const [dismissedCalls, setDismissedCalls] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem('meet-dismissed-calls') || '[]'); }
+    catch { return []; }
+  });
   const [callMode, setCallMode] = React.useState(null);
   const [token, setToken] = React.useState('');
   const [url, setUrl] = React.useState('');
@@ -85,8 +89,20 @@ function App() {
     finally { setBusy(false); }
   }
 
+  function dismissIncomingCall(roomName) {
+    setDismissedCalls(previous => {
+      const next = [...new Set([...previous, roomName])].slice(-50);
+      try { localStorage.setItem('meet-dismissed-calls', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    setIncoming(null);
+  }
+
   async function answerCall(accept) {
-    if (!incoming) return;
+    if (!incoming || busy) return;
+    const call = incoming;
+    setError('');
+    if (!accept) dismissIncomingCall(call.room);
     setBusy(true);
     try {
       const r = await fetch('/api/call', {
@@ -94,17 +110,17 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'respond',
-          room: incoming.room,
+          room: call.room,
           identity: name.trim(),
           accept
         })
       });
-      const d = await r.json();
+      const d = await r.json().catch(() => ({}));
       if (!r.ok) throw Error(d.error || 'Could not respond to the call.');
-      if (accept) await joinRoom(incoming.room);
-      else setIncoming(null);
-    } catch (err) { setError(err.message); }
-    finally { setBusy(false); }
+      if (accept) await joinRoom(call.room);
+    } catch (err) {
+      setError(err.message || 'Could not respond to the call.');
+    } finally { setBusy(false); }
   }
 
   React.useEffect(() => {
@@ -114,13 +130,16 @@ function App() {
       try {
         const r = await fetch('/api/call?type=incoming&identity=' + encodeURIComponent(name.trim()), { cache: 'no-store' });
         const d = await r.json();
-        if (active && r.ok && d.calls?.length) setIncoming(d.calls[0]);
+        if (active && r.ok && d.calls?.length) {
+          const nextCall = d.calls.find(call => !dismissedCalls.includes(call.room));
+          if (nextCall) setIncoming(nextCall);
+        }
       } catch {}
     };
     check();
     const timer = setInterval(check, 3000);
     return () => { active = false; clearInterval(timer); };
-  }, [name, token, callMode, incoming]);
+  }, [name, token, callMode, incoming, dismissedCalls]);
 
   React.useEffect(() => {
     if (callMode?.role !== 'outgoing' || token) return;
@@ -238,6 +257,7 @@ function App() {
         <div className="call-kicker">INCOMING CALL</div>
         <h2>{incoming.caller}</h2>
         <p>is calling you</p>
+        {error && <div className="error call-error" role="alert">{error}</div>}
         <div className="call-actions">
           <button className="decline-call" disabled={busy} onClick={()=>answerCall(false)}>Decline</button>
           <button className="accept-call" disabled={busy} onClick={()=>answerCall(true)}>Accept</button>
