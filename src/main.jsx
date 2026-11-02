@@ -201,8 +201,11 @@ function App() {
         token={token}
         serverUrl={url}
         connect={true}
-        video={true}
-        audio={true}
+        // Join without requesting devices after the async token fetch.
+        // The user can enable camera/mic from LiveKit's controls, which is a
+        // direct browser interaction and can trigger the permission prompt.
+        video={false}
+        audio={false}
         onError={(err) => setMeetingError('LiveKit connection error: ' + (err?.message || 'Unknown error'))}
         onDisconnected={() => setMeetingError('You were disconnected from the meeting. Check your internet connection and try joining again.')}
       >
