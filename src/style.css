@@ -1,1 +1,107 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');:root{font-family:'DM Sans',sans-serif;color:#172033;background:#f7f8fc;font-synthesis:none}*{box-sizing:border-box}body{margin:0}main{max-width:1180px;margin:auto;padding:0 38px}nav{height:88px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e9ebf2}.brand{font:800 25px Manrope,sans-serif;letter-spacing:-1.3px;display:flex;align-items:center;gap:9px}.brand-icon,.card-mark{display:grid;place-items:center;background:#4169f5;color:white;border-radius:11px;width:34px;height:34px;font:800 22px Manrope}.nav-note{font-size:13px;color:#8b93a5}.hero{min-height:570px;display:grid;grid-template-columns:1.15fr .85fr;align-items:center;gap:75px;padding:55px 0}.eyebrow{font-size:10px;letter-spacing:2px;color:#4169f5;font-weight:700}.eyebrow i{display:inline-block;width:7px;height:7px;background:#4169f5;border-radius:50%;margin-right:9px}h1{font:800 clamp(42px,5.5vw,68px)/1.08 Manrope,sans-serif;letter-spacing:-3px;margin:23px 0 18px}h1 em{font-style:normal;color:#4169f5}.hero-copy>p{max-width:440px;color:#788196;font-size:16px;line-height:1.8}.pills{display:flex;gap:9px;flex-wrap:wrap;margin-top:29px}.pills span{background:white;border:1px solid #e9ebf2;padding:9px 12px;border-radius:30px;font-size:11px;color:#59647a}.join-card{background:#fff;border:1px solid #eceef4;border-radius:20px;padding:32px;box-shadow:0 18px 55px #26375a0b}.card-mark{width:42px;height:42px;font-size:26px;border-radius:13px}.join-card h2{font:700 25px Manrope;margin:21px 0 5px;letter-spacing:-.7px}.card-sub{color:#8a92a4;font-size:13px;margin:0 0 27px}.join-card label{display:block;font-size:12px;font-weight:700;margin:16px 0 8px}.join-card small{font-weight:400;color:#a2a8b5}.join-card input{width:100%;height:48px;border:1px solid #e5e8ef;border-radius:9px;padding:0 13px;font:14px 'DM Sans';outline:none}.join-card input:focus{border-color:#4169f5;box-shadow:0 0 0 3px #4169f51a}.primary{width:100%;height:49px;background:#4169f5;color:#fff;border:0;border-radius:9px;font-weight:700;margin-top:23px;cursor:pointer;font-size:13px}.primary span{float:right;margin-right:12px}.primary:disabled{opacity:.7}.secure{text-align:center;font-size:10px;color:#9aa1b0;margin-top:18px}.error{color:#c03945;font-size:12px;margin-top:12px;line-height:1.5}.features{border-top:1px solid #e9ebf2;border-bottom:1px solid #e9ebf2;padding:27px 0;display:grid;grid-template-columns:repeat(3,1fr);gap:30px}.features div{display:grid;gap:6px}.features b{font-size:10px;color:#4169f5}.features strong{font:700 14px Manrope}.features span{font-size:11px;color:#8a92a4}footer{height:75px;display:flex;align-items:center;justify-content:space-between;font-size:9px;letter-spacing:1px;color:#a1a8b6}.meeting{height:100vh;background:#111827}.meeting-head{height:58px;background:#111827;color:white;display:flex;align-items:center;padding:0 20px;gap:25px}.meeting-head .brand{font-size:19px}.meeting-head .brand-icon{width:27px;height:27px;font-size:17px}.live{font:700 9px 'DM Sans';letter-spacing:1px;color:#aebdff}.room-label{font-size:12px;color:#c2c9d8}.leave{margin-left:auto;background:#dc4655;border:0;color:white;border-radius:7px;padding:9px 14px;cursor:pointer}.meeting>.lk-room-container{height:calc(100vh - 58px)}@media(max-width:800px){main{padding:0 20px}.hero{grid-template-columns:1fr;gap:35px;padding:55px 0}.hero-copy{text-align:center}.hero-copy>p{margin:auto}.pills{justify-content:center}h1{font-size:48px}.features{gap:15px}.features span{line-height:1.5}}@media(max-width:520px){.nav-note{display:none}.features{grid-template-columns:1fr}.features div{grid-template-columns:32px 1fr}.features b{grid-row:span 2}.features span{grid-column:2}footer span{display:none}.join-card{padding:25px}}
+
+/* Meeting room: keep the stage spacious and make every control readable. */
+.meeting {
+  height: 100dvh;
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #111827;
+  color: #f8fafc;
+}
+
+.meeting > .lk-room-container {
+  flex: 1 1 auto;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  --lk-fg: #f8fafc;
+  --lk-fg-secondary: #d1d5db;
+  --lk-fg-tertiary: #9ca3af;
+  --lk-bg: #111827;
+  --lk-bg-secondary: #1f2937;
+  --lk-bg-tertiary: #273449;
+  --lk-control-fg: #ffffff;
+  --lk-control-bg: #374151;
+  --lk-accent-fg: #ffffff;
+  --lk-accent-bg: #4169f5;
+  --lk-border-color: #4b5563;
+}
+
+.meeting .lk-video-conference,
+.meeting .lk-video-conference-inner {
+  height: 100%;
+  min-height: 0;
+}
+
+.meeting .lk-control-bar {
+  background: #1f2937;
+  border: 1px solid #4b5563;
+  border-radius: 14px;
+  padding: 10px 14px;
+  gap: 10px;
+  box-shadow: 0 8px 28px #0008;
+}
+
+.meeting .lk-button {
+  color: #ffffff;
+  background: #374151;
+  border: 1px solid #64748b;
+  border-radius: 9px;
+  min-height: 42px;
+}
+
+.meeting .lk-button:hover {
+  background: #4b5563;
+}
+
+.meeting .lk-button svg {
+  color: #ffffff;
+  fill: currentColor;
+}
+
+.meeting .lk-disconnect-button,
+.meeting .lk-button[data-lk-source="disconnect"] {
+  background: #dc4655;
+  color: #ffffff;
+  border-color: #f87171;
+}
+
+.meeting .lk-participant-tile {
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.meeting .lk-participant-name {
+  color: #ffffff;
+}
+
+.meeting .lk-chat,
+.meeting .lk-settings-menu-modal,
+.meeting .lk-device-menu {
+  color: #f8fafc;
+  background: #1f2937;
+}
+
+@media (max-width: 600px) {
+  .meeting-head {
+    height: 54px;
+    flex: 0 0 54px;
+    padding: 0 12px;
+    gap: 12px;
+  }
+  .meeting-head .room-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .meeting .lk-control-bar {
+    max-width: calc(100vw - 20px);
+    padding: 8px;
+    gap: 5px;
+  }
+}
