@@ -6,12 +6,34 @@ import './style.css';
 
 function App() {
   const [room, setRoom] = React.useState('');
-  const [name, setName] = React.useState('');
+  const [name, setName] = React.useState(() => {
+    try { return localStorage.getItem('meet-display-name') || ''; }
+    catch { return ''; }
+  });
+  const [profileSaved, setProfileSaved] = React.useState(() => {
+    try { return Boolean(localStorage.getItem('meet-display-name')); }
+    catch { return false; }
+  });
   const [token, setToken] = React.useState('');
   const [url, setUrl] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
   const [meetingError, setMeetingError] = React.useState('');
+
+  React.useEffect(() => {
+    try {
+      const cleanName = name.trim();
+      if (cleanName) {
+        localStorage.setItem('meet-display-name', cleanName);
+        setProfileSaved(true);
+      } else {
+        localStorage.removeItem('meet-display-name');
+        setProfileSaved(false);
+      }
+    } catch {
+      setProfileSaved(false);
+    }
+  }, [name]);
 
   async function join(e) {
     e?.preventDefault();
@@ -90,13 +112,16 @@ function App() {
         <div className="card-mark">m</div>
         <h2>Start a meeting</h2>
         <p className="card-sub">Your next conversation is one click away.</p>
-        <label>Your name</label>
-        <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Alex Morgan" maxLength="40"/>
+        <div className="profile-label">
+          <label>{profileSaved ? 'Your profile' : 'Sign in with your name'}</label>
+          {profileSaved && <span className="saved-profile">✓ Saved on this device</span>}
+        </div>
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder="Enter your display name" maxLength="40" autoComplete="name"/>
         <label>Meeting ID <small>optional</small></label>
         <input value={room} onChange={e=>setRoom(e.target.value)} placeholder="Enter a code or leave blank"/>
         <button className="primary" disabled={busy}>{busy?'Connecting…':'Start / Join meeting'} <span>→</span></button>
         {error&&<div className="error" role="alert">{error}</div>}
-        <div className="secure">🔒 Your browser will ask for camera and microphone access.</div>
+        <div className="secure">Your name is remembered on this device. No password or account needed.</div>
       </form>
     </section>
     <section className="features">
