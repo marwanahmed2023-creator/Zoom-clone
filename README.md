@@ -9,20 +9,19 @@ A browser-based video meeting app built with React and LiveKit.
 - LiveKit VideoConference interface, including participant controls, chat and screen sharing
 - Server-side access-token generation (API secrets are never sent to the browser)
 
-## Deploy on Netlify
+## Deploy on Cloudflare Pages (free hosting)
 
-This repository is configured for Netlify. Netlify hosts the website and the secure token endpoint as a Netlify Function. LiveKit carries the real-time audio/video and screen-share media; that media does not pass through Netlify.
+Cloudflare Pages serves the React site globally and runs the secure `/api/token` endpoint as a Pages Function. LiveKit carries the actual audio, video and screen-share media; that media does not pass through the website host.
 
-1. Push this repository to GitHub.
-2. In Netlify, choose **Add new site → Import an existing project** and connect this GitHub repository.
-3. Keep the build command as `npm run build` and publish directory as `dist` (the included `netlify.toml` already sets these).
-4. In **Site configuration → Environment variables**, add:
+1. In Cloudflare, open **Workers & Pages → Create → Pages → Connect to Git** and select this GitHub repository.
+2. Use `main` as the production branch, `npm run build` as the build command, and `dist` as the build output directory.
+3. In the Pages project settings, add these three variables for both Production and Preview:
    - `LIVEKIT_URL` — the LiveKit server URL (starts with `wss://`)
    - `LIVEKIT_API_KEY` — your LiveKit API key
    - `LIVEKIT_API_SECRET` — your LiveKit API secret
-5. Trigger a deploy. Do not put the API secret in frontend code or commit it to GitHub.
+4. Redeploy. Keep the API secret in Cloudflare's environment settings only; never put it in frontend code or GitHub.
 
-The app's `/api/token` endpoint is routed to the Netlify Function in production. The existing Express server remains available for local development.
+The Cloudflare Pages Function at `functions/api/token.js` creates the short-lived meeting token using the Web Crypto API. The existing Express server remains available for local development. The Cloudflare Free plan includes 100,000 dynamic function requests per day; static asset requests are free and unlimited.
 
 ## Local development
 
