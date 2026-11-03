@@ -17,6 +17,39 @@ import com.getcapacitor.annotation.*;
 )
 public class NativeCallListenerPlugin extends Plugin {
     @PluginMethod
+    public void requestMediaPermissions(PluginCall call) {
+        if (getPermissionState("camera") != PermissionState.GRANTED) {
+            requestPermissionForAlias("camera", call, "requestMicrophonePermission");
+            return;
+        }
+        requestMicrophonePermission(call);
+    }
+
+    @PermissionCallback
+    private void requestMicrophonePermission(PluginCall call) {
+        if (getPermissionState("camera") != PermissionState.GRANTED) {
+            call.reject("Camera permission was not granted.");
+            return;
+        }
+        if (getPermissionState("microphone") != PermissionState.GRANTED) {
+            requestPermissionForAlias("microphone", call, "mediaPermissionsResult");
+            return;
+        }
+        call.resolve();
+    }
+
+    @PermissionCallback
+    private void mediaPermissionsResult(PluginCall call) {
+        if (getPermissionState("camera") == PermissionState.GRANTED &&
+            getPermissionState("microphone") == PermissionState.GRANTED) {
+            call.resolve();
+        } else {
+            call.reject("Camera and microphone permissions are required to join a meeting.");
+        }
+    }
+
+
+    @PluginMethod
     public void start(PluginCall call) {
         String identity = call.getString("identity", "").trim();
         if (identity.isEmpty()) {
