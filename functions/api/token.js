@@ -1,14 +1,13 @@
 import { AccessToken } from "livekit-server-sdk";
 
 function corsHeaders(request) {
-  const origin = request?.headers.get("Origin") || "";
-  const allowed = new Set(["https://localhost", "http://localhost", "capacitor://localhost", "https://zoom-clone.pages.dev"]);
   const headers = {
     "Content-Type": "application/json",
     "Cache-Control": "no-store, no-cache, must-revalidate",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Vary": "Origin",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Max-Age": "86400",
   };
   if (allowed.has(origin)) headers["Access-Control-Allow-Origin"] = origin;
   return headers;
