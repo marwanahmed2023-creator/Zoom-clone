@@ -3,8 +3,9 @@ package com.meet.app;
 import android.app.*;
 import android.content.*;
 import android.media.AudioAttributes;
-import android.media.ToneGenerator;
+import android.media.MediaPlayer;
 import android.os.*;
+import android.media.AudioAttributes;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import org.json.JSONArray;
@@ -29,16 +30,7 @@ public class CallListenerService extends Service {
     private String identity = "";
     private String activeRoom = "";
     private String activeCaller = "";
-    private ToneGenerator ringtone;
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Runnable ringAgain = new Runnable() {
-        @Override public void run() {
-            if (ringtone != null && !activeRoom.isEmpty()) {
-                ringtone.startTone(ToneGenerator.TONE_SUP_RINGTONE, 5000);
-                handler.postDelayed(this, 5500);
-            }
-        }
-    };
+    private MediaPlayer ringtone;
 
     @Override public void onCreate() {
         super.onCreate();
@@ -148,14 +140,23 @@ public class CallListenerService extends Service {
 
     private void startRingtone() {
         stopRingtone();
-        ringtone = new ToneGenerator(android.media.AudioManager.STREAM_RING, 100);
-        handler.post(ringAgain);
+        try {
+            ringtone = MediaPlayer.create(this, R.raw.meet_ringtone);
+            if (ringtone != null) {
+                ringtone.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build());
+                ringtone.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
+                ringtone.setLooping(true);
+                ringtone.start();
+            }
+        } catch (Exception ignored) { stopRingtone(); }
     }
 
     private void stopRingtone() {
-        handler.removeCallbacks(ringAgain);
         if (ringtone != null) {
-            try { ringtone.stopTone(); ringtone.release(); } catch (Exception ignored) {}
+            try { if (ringtone.isPlaying()) ringtone.stop(); ringtone.release(); } catch (Exception ignored) {}
             ringtone = null;
         }
     }
