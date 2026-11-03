@@ -9,6 +9,8 @@ self.addEventListener("push", event => {
     // Ask the operating system to use its default notification sound.
     // Web apps cannot choose or force a custom sound while closed.
     silent: false,
+    vibrate: [500, 250, 500, 250, 900],
+    requireInteraction: true,
     data: { url: data.url || "/" }
   };
   event.waitUntil(self.registration.showNotification(title, options));
