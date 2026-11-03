@@ -6,6 +6,9 @@ self.addEventListener("push", event => {
     body: data.body || "Someone is calling you.",
     tag: "meet-incoming-call",
     renotify: true,
+    // Ask the operating system to use its default notification sound.
+    // Web apps cannot choose or force a custom sound while closed.
+    silent: false,
     data: { url: data.url || "/" }
   };
   event.waitUntil(self.registration.showNotification(title, options));
