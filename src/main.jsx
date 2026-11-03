@@ -42,10 +42,49 @@ function App() {
   const [error, setError] = React.useState('');
   const [meetingError, setMeetingError] = React.useState('');
   const [notificationPermission, setNotificationPermission] = React.useState(() => typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
-  const [pushReady, setPushReady] = React.useState(false);
+  const [pushReady, setPushReady] = React.useState(() => { try { return localStorage.getItem('meet-push-ready') === 'yes'; } catch { return false; } });
+  const audioContextRef = React.useRef(null);
   const [mediaReady, setMediaReady] = React.useState(false);
   const leavingRef = React.useRef(false);
   const notifiedCallRef = React.useRef('');
+
+  React.useEffect(() => {
+    const unlockAudio = () => {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        if (!audioContextRef.current) audioContextRef.current = new AudioContextClass();
+        if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
+      } catch {}
+    };
+    window.addEventListener('pointerdown', unlockAudio);
+    window.addEventListener('keydown', unlockAudio);
+    return () => { window.removeEventListener('pointerdown', unlockAudio); window.removeEventListener('keydown', unlockAudio); };
+  }, []);
+
+  React.useEffect(() => {
+    if (!incoming) return;
+    let stopped = false;
+    const playChime = () => {
+      const ctx = audioContextRef.current;
+      if (!ctx || ctx.state !== 'running' || stopped) return;
+      const now = ctx.currentTime;
+      [660, 880].forEach((frequency, index) => {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = frequency;
+        gain.gain.setValueAtTime(0.0001, now + index * 0.18);
+        gain.gain.exponentialRampToValueAtTime(0.16, now + index * 0.18 + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.18 + 0.22);
+        oscillator.connect(gain); gain.connect(ctx.destination);
+        oscillator.start(now + index * 0.18); oscillator.stop(now + index * 0.18 + 0.24);
+      });
+    };
+    playChime();
+    const timer = window.setInterval(playChime, 1800);
+    return () => { stopped = true; window.clearInterval(timer); };
+  }, [incoming]);
 
   React.useEffect(() => {
     try {
@@ -97,9 +136,11 @@ function App() {
       const result = await saved.json();
       if (!saved.ok) throw Error(result.error || 'Could not save this device for call alerts.');
       setPushReady(true);
+      try { localStorage.setItem('meet-push-ready', 'yes'); } catch {}
       setError('');
     } catch (err) {
       setPushReady(false);
+      try { localStorage.removeItem('meet-push-ready'); } catch {}
       setError(err.message || 'Could not enable background call alerts.');
     }
   }
