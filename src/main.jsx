@@ -1,8 +1,11 @@
 import React from 'react';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { createRoot } from 'react-dom/client';
 import { LiveKitRoom, VideoConference, useParticipants } from '@livekit/components-react';
 import '@livekit/components-styles';
 import './style.css';
+
+const NativeCallListener = registerPlugin('NativeCallListener');
 
 function AutoSaveMeetingContacts({ currentName, onRemember }) {
   const participants = useParticipants();
@@ -43,6 +46,7 @@ function App() {
   const [meetingError, setMeetingError] = React.useState('');
   const [notificationPermission, setNotificationPermission] = React.useState(() => typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
   const [pushReady, setPushReady] = React.useState(() => { try { return localStorage.getItem('meet-push-ready') === 'yes'; } catch { return false; } });
+  const [nativeListening, setNativeListening] = React.useState(false);
   const audioContextRef = React.useRef(null);
   const [mediaReady, setMediaReady] = React.useState(false);
   const leavingRef = React.useRef(false);
@@ -317,6 +321,38 @@ function App() {
     setCallMode(null);
   }
 
+  async function startNativeCallAlerts() {
+    if (!name.trim()) return setError('Enter and save your display name first.');
+    try {
+      await NativeCallListener.start({ identity: name.trim() });
+      setNativeListening(true);
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Could not start native call alerts.');
+    }
+  }
+
+  async function stopNativeCallAlerts() {
+    try {
+      await NativeCallListener.stop();
+      setNativeListening(false);
+    } catch (err) {
+      setError(err.message || 'Could not stop native call alerts.');
+    }
+  }
+
+  React.useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !name.trim()) return;
+    let active = true;
+    NativeCallListener.getPendingCall().then(async result => {
+      if (!active || !result?.room) return;
+      await NativeCallListener.clearPendingCall();
+      try { await joinRoom(result.room); }
+      catch (err) { setError(err.message || 'Could not open the accepted call.'); }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [name]);
+
   async function showSharedScreenFullscreen() {
     const focusWrapper = document.querySelector('.lk-focus-layout-wrapper');
     const focusedScreen = focusWrapper?.querySelector('.lk-focus-layout .lk-participant-tile video');
@@ -400,6 +436,10 @@ function App() {
         {notificationPermission !== 'unsupported' && !pushReady && <div className="notification-row">
           <div><strong>Background call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Set up alerts when Meet is closed'}</span></div>
           <button type="button" onClick={enableNotifications}>{notificationPermission === 'granted' ? 'Finish setup' : 'Enable notifications'}</button>
+        </div>}
+        {Capacitor.isNativePlatform() && <div className="notification-row">
+          <div><strong>Native call alerts</strong><span>{nativeListening ? 'Listening for calls, even when Meet is closed' : 'Enable background calling on this phone'}</span></div>
+          <button type="button" onClick={nativeListening ? stopNativeCallAlerts : startNativeCallAlerts}>{nativeListening ? 'Stop listening' : 'Enable call alerts'}</button>
         </div>}
         <div className="secure">Your name is remembered on this device. No password or account needed.</div>
       </div>
