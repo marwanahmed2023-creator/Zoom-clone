@@ -54,10 +54,10 @@ export async function onRequestGet({ request, env }) {
     const url = new URL(request.url);
     const type = url.searchParams.get("type");
     const identity = clean(url.searchParams.get("identity"));
-    if (!identity) return json({ error: "Your display name is required." }, 400);
+    if (!identity) return json({ error: "Your display name is required." }, 400, request);
 
     if (type === "incoming") {
-      const data = await serviceRequest(env, "ListRooms", { names: [] });
+      const data = await serviceRequest(env, "ListRooms", { names: [] }, 200, request);
       const calls = (data.rooms || []).flatMap((room) => {
         let meta;
         try { meta = JSON.parse(room.metadata || "{}"); } catch { return []; }
@@ -65,23 +65,23 @@ export async function onRequestGet({ request, env }) {
         if (!meta.createdAt || Date.now() - meta.createdAt > 60000) return [];
         return [{ room: room.name, caller: meta.caller, createdAt: meta.createdAt }];
       });
-      return json({ calls: calls.slice(0, 3) });
+      return json({ calls: calls.slice(0, 3) }, 200, request);
     }
 
     if (type === "status") {
       const roomName = clean(url.searchParams.get("room"), 100);
-      if (!roomName) return json({ error: "Call room is required." }, 400);
+      if (!roomName) return json({ error: "Call room is required." }, 400, request);
       const room = await getRoom(env, roomName);
-      if (!room) return json({ status: "expired" });
+      if (!room) return json({ status: "expired" }, 200, request);
       let meta = {};
       try { meta = JSON.parse(room.metadata || "{}"); } catch {}
-      if (!sameName(meta.caller, identity)) return json({ error: "This call does not belong to you." }, 403);
-      if (meta.status === "ringing" && Date.now() - meta.createdAt > 60000) return json({ status: "expired" });
-      return json({ status: meta.status || "expired" });
+      if (!sameName(meta.caller, identity)) return json({ error: "This call does not belong to you." }, 403, request);
+      if (meta.status === "ringing" && Date.now() - meta.createdAt > 60000) return json({ status: "expired" }, 200, request);
+      return json({ status: meta.status || "expired" }, 200, request);
     }
-    return json({ error: "Unknown call request." }, 400);
+    return json({ error: "Unknown call request." }, 400, request);
   } catch (error) {
-    return json({ error: error.message || "Call service unavailable." }, 500);
+    return json({ error: error.message || "Call service unavailable." }, 500, request);
   }
 }
 
@@ -93,10 +93,10 @@ export async function onRequestPost({ request, env }) {
     if (action === "invite") {
       const caller = clean(body.caller);
       const callee = clean(body.callee);
-      if (!caller || !callee) return json({ error: "Both display names are required." }, 400);
-      if (sameName(caller, callee)) return json({ error: "You cannot call yourself." }, 400);
+      if (!caller || !callee) return json({ error: "Both display names are required." }, 400, request);
+      if (sameName(caller, callee)) return json({ error: "You cannot call yourself." }, 400, request);
       const room = "call-" + crypto.randomUUID().replace(/-/g, "").slice(0, 20);
-      const metadata = JSON.stringify({ caller, callee, status: "ringing", createdAt: Date.now() });
+      const metadata = JSON.stringify({ caller, callee, status: "ringing", createdAt: Date.now() }, 200, request);
       await serviceRequest(env, "CreateRoom", {
         name: room,
         emptyTimeout: 90,
@@ -104,15 +104,15 @@ export async function onRequestPost({ request, env }) {
         metadata,
       });
       await sendCallPush(env, callee, caller, room);
-      return json({ room });
+      return json({ room }, 200, request);
     }
 
     if (action === "respond") {
       const roomName = clean(body.room, 100);
       const identity = clean(body.identity);
-      if (!roomName || !identity) return json({ error: "Call and display name are required." }, 400);
+      if (!roomName || !identity) return json({ error: "Call and display name are required." }, 400, request);
       const room = await getRoom(env, roomName);
-      if (!room) return json({ error: "This call has expired." }, 404);
+      if (!room) return json({ error: "This call has expired." }, 404, request);
       let meta = {};
       try { meta = JSON.parse(room.metadata || "{}"); } catch {}
       const isCaller = sameName(meta.caller, identity);
@@ -122,14 +122,14 @@ export async function onRequestPost({ request, env }) {
       } else if (isCallee && meta.status === "ringing") {
         meta.status = body.accept ? "accepted" : "declined";
       } else {
-        return json({ error: "You are not allowed to respond to this call." }, 403);
+        return json({ error: "You are not allowed to respond to this call." }, 403, request);
       }
-      await serviceRequest(env, "UpdateRoomMetadata", { room: roomName, metadata: JSON.stringify(meta) });
-      return json({ ok: true, status: meta.status });
+      await serviceRequest(env, "UpdateRoomMetadata", { room: roomName, metadata: JSON.stringify(meta) }, 200, request);
+      return json({ ok: true, status: meta.status }, 200, request);
     }
 
-    return json({ error: "Unknown call action." }, 400);
+    return json({ error: "Unknown call action." }, 400, request);
   } catch (error) {
-    return json({ error: error.message || "Call service unavailable." }, 500);
+    return json({ error: error.message || "Call service unavailable." }, 500, request);
   }
 }
