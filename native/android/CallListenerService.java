@@ -31,6 +31,7 @@ public class CallListenerService extends Service {
     private String activeRoom = "";
     private String activeCaller = "";
     private MediaPlayer ringtone;
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override public void onCreate() {
         super.onCreate();
