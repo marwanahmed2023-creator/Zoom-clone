@@ -44,9 +44,13 @@ public class CallListenerService extends Service {
             return START_NOT_STICKY;
         }
         if (ACTION_ACCEPT.equals(action) || ACTION_DECLINE.equals(action)) {
+            if (identity == null || identity.isEmpty()) {
+                identity = getSharedPreferences("meet_native_calls", 0).getString("identity", "");
+            }
+            if (worker == null || worker.isShutdown()) worker = Executors.newSingleThreadScheduledExecutor();
             String room = intent.getStringExtra("room");
             respond(room, ACTION_ACCEPT.equals(action));
-            return START_STICKY;
+            return START_NOT_STICKY;
         }
         if (intent != null) identity = intent.getStringExtra("identity");
         if (identity == null || identity.isEmpty()) {
