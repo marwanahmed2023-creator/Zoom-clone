@@ -26,6 +26,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.2",
     "@capacitor/cli": "^8.5.2",
-    "@capacitor/android": "^8.5.2"
+    "@capacitor/android": "^8.5.2",
+    "typescript": "^5.8.3"
   }
 }
