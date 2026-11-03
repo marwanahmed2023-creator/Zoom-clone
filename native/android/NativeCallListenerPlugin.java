@@ -10,7 +10,9 @@ import com.getcapacitor.annotation.*;
 @CapacitorPlugin(
     name = "NativeCallListener",
     permissions = {
-        @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS })
+        @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS }),
+        @Permission(alias = "camera", strings = { Manifest.permission.CAMERA }),
+        @Permission(alias = "microphone", strings = { Manifest.permission.RECORD_AUDIO })
     }
 )
 public class NativeCallListenerPlugin extends Plugin {
