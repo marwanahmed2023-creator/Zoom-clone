@@ -334,7 +334,7 @@ function App() {
         <div className="brand"><span className="brand-icon">m</span> meet<span className="live">LIVE</span></div>
         <div className="room-label">Meeting · {room}</div>
         <button className="screen-only" onClick={showSharedScreenFullscreen} title="Show only the shared screen">Screen only ⛶</button>
-        <button className="leave" onClick={() => window.location.reload()}>Leave meeting</button>
+        <button className="leave" onClick={leaveMeeting}>Leave meeting</button>
       </header>
       {meetingError && <div className="error meeting-error" role="alert">{meetingError}</div>}
       <LiveKitRoom
