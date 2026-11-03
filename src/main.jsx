@@ -137,7 +137,7 @@ function App() {
           applicationServerKey: urlBase64ToUint8Array(config.publicKey)
         });
       }
-      const saved = await fetch('/api/push/subscribe', {
+      const saved = await apiFetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identity: name.trim(), subscription: subscription.toJSON() })
@@ -169,7 +169,7 @@ function App() {
 
   async function joinRoom(roomName) {
     leavingRef.current = false;
-    const r = await fetch('/api/token', {
+    const r = await apiFetch('/api/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ room: roomName, identity: name.trim() })
@@ -224,7 +224,7 @@ function App() {
     if (target.toLowerCase() === name.trim().toLowerCase()) return setError('You cannot call yourself.');
     setBusy(true);
     try {
-      const r = await fetch('/api/call', {
+      const r = await apiFetch('/api/call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'invite', caller: name.trim(), callee: target })
@@ -252,7 +252,7 @@ function App() {
     if (!accept) dismissIncomingCall(call.room);
     setBusy(true);
     try {
-      const r = await fetch('/api/call', {
+      const r = await apiFetch('/api/call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -275,7 +275,7 @@ function App() {
     let active = true;
     const check = async () => {
       try {
-        const r = await fetch('/api/call?type=incoming&identity=' + encodeURIComponent(name.trim()), { cache: 'no-store' });
+        const r = await apiFetch('/api/call?type=incoming&identity=' + encodeURIComponent(name.trim()), { cache: 'no-store' });
         const d = await r.json();
         if (active && r.ok && d.calls?.length) {
           const nextCall = d.calls.find(call => !dismissedCalls.includes(call.room));
@@ -297,7 +297,7 @@ function App() {
     const check = async () => {
       try {
         const q = new URLSearchParams({ type: 'status', room: callMode.room, identity: name.trim() });
-        const r = await fetch('/api/call?' + q.toString(), { cache: 'no-store' });
+        const r = await apiFetch('/api/call?' + q.toString(), { cache: 'no-store' });
         const d = await r.json();
         if (!active || !r.ok) return;
         if (d.status === 'accepted') {
@@ -317,7 +317,7 @@ function App() {
   async function cancelCall() {
     if (!callMode) return;
     try {
-      await fetch('/api/call', {
+      await apiFetch('/api/call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'respond', room: callMode.room, identity: name.trim(), accept: false, cancel: true })
