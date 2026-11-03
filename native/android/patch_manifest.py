@@ -1,0 +1,23 @@
+from pathlib import Path
+p = Path("android/app/src/main/AndroidManifest.xml")
+s = p.read_text()
+s = s.replace('    <application', '''    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <application''', 1)
+needle = '        </activity>'
+service = '''
+        <service
+            android:name=".CallListenerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Maintains the user's requested incoming Meet call connection and alerts them to calls" />
+        </service>
+'''
+s = s.replace(needle, needle + service, 1)
+p.write_text(s)
