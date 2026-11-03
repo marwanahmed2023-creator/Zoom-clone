@@ -62,7 +62,7 @@ export async function onRequestGet({ request, env }) {
         let meta;
         try { meta = JSON.parse(room.metadata || "{}"); } catch { return []; }
         if (meta.status !== "ringing" || !sameName(meta.callee, identity)) return [];
-        if (!meta.createdAt || Date.now() - meta.createdAt > 60000) return [];
+        if (!meta.createdAt) return [];
         return [{ room: room.name, caller: meta.caller, createdAt: meta.createdAt }];
       });
       return json({ calls: calls.slice(0, 3) });
@@ -76,7 +76,7 @@ export async function onRequestGet({ request, env }) {
       let meta = {};
       try { meta = JSON.parse(room.metadata || "{}"); } catch {}
       if (!sameName(meta.caller, identity)) return json({ error: "This call does not belong to you." }, 403);
-      if (meta.status === "ringing" && Date.now() - meta.createdAt > 60000) return json({ status: "expired" });
+      
       return json({ status: meta.status || "expired" });
     }
     return json({ error: "Unknown call request." }, 400);
@@ -99,7 +99,7 @@ export async function onRequestPost({ request, env }) {
       const metadata = JSON.stringify({ caller, callee, status: "ringing", createdAt: Date.now() });
       await serviceRequest(env, "CreateRoom", {
         name: room,
-        emptyTimeout: 90,
+        emptyTimeout: 86400,
         maxParticipants: 2,
         metadata,
       });
