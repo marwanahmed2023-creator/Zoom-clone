@@ -7,6 +7,11 @@ import './style.css';
 
 const NativeCallListener = registerPlugin('NativeCallListener');
 
+function apiFetch(path, options) {
+  const base = Capacitor.isNativePlatform() ? 'https://zoom-clone.pages.dev' : '';
+  return fetch(base + path, options);
+}
+
 function AutoSaveMeetingContacts({ currentName, onRemember }) {
   const participants = useParticipants();
   React.useEffect(() => {
@@ -120,7 +125,7 @@ function App() {
         return setError(permission === 'denied' ? 'Notifications are blocked for this site. Allow them in browser settings.' : 'Notification permission was not granted.');
       }
       if (!name.trim()) return setError('Enter and save your display name first.');
-      const configResponse = await fetch('/api/push/config', { cache: 'no-store' });
+      const configResponse = await apiFetch('/api/push/config', { cache: 'no-store' });
       const config = await configResponse.json();
       if (!configResponse.ok || !config.publicKey) throw Error(config.error || 'Push notifications are not configured on the server yet.');
       const registration = await navigator.serviceWorker.register('/sw.js');
@@ -442,7 +447,7 @@ function App() {
           <button className="secondary" disabled={busy}>Start / Join meeting <span>→</span></button>
         </form>
         {error&&<div className="error" role="alert">{error}</div>}
-        {notificationPermission !== 'unsupported' && !pushReady && <div className="notification-row">
+        {!Capacitor.isNativePlatform() && notificationPermission !== 'unsupported' && !pushReady && <div className="notification-row">
           <div><strong>Background call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Set up alerts when Meet is closed'}</span></div>
           <button type="button" onClick={enableNotifications}>{notificationPermission === 'granted' ? 'Finish setup' : 'Enable notifications'}</button>
         </div>}
