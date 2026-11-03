@@ -51,7 +51,6 @@ function App() {
   const [meetingError, setMeetingError] = React.useState('');
   const [notificationPermission, setNotificationPermission] = React.useState(() => typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
   const [pushReady, setPushReady] = React.useState(() => { try { return localStorage.getItem('meet-push-ready') === 'yes'; } catch { return false; } });
-  const [nativeListening, setNativeListening] = React.useState(false);
   const audioContextRef = React.useRef(null);
   const [mediaReady, setMediaReady] = React.useState(false);
   const leavingRef = React.useRef(false);
@@ -106,6 +105,16 @@ function App() {
         setProfileSaved(false);
       }
     } catch { setProfileSaved(false); }
+  }, [name]);
+
+  React.useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !name.trim()) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      NativeCallListener.start({ identity: name.trim() })
+        .catch(err => { if (active) setError(err.message || 'Could not start background call listening.'); });
+    }, 1200);
+    return () => { active = false; window.clearTimeout(timer); };
   }, [name]);
 
   function urlBase64ToUint8Array(value) {
@@ -326,26 +335,6 @@ function App() {
     setCallMode(null);
   }
 
-  async function startNativeCallAlerts() {
-    if (!name.trim()) return setError('Enter and save your display name first.');
-    try {
-      await NativeCallListener.start({ identity: name.trim() });
-      setNativeListening(true);
-      setError('');
-    } catch (err) {
-      setError(err.message || 'Could not start native call alerts.');
-    }
-  }
-
-  async function stopNativeCallAlerts() {
-    try {
-      await NativeCallListener.stop();
-      setNativeListening(false);
-    } catch (err) {
-      setError(err.message || 'Could not stop native call alerts.');
-    }
-  }
-
   React.useEffect(() => {
     if (!Capacitor.isNativePlatform() || !name.trim()) return;
     let active = true;
@@ -450,10 +439,6 @@ function App() {
         {!Capacitor.isNativePlatform() && notificationPermission !== 'unsupported' && !pushReady && <div className="notification-row">
           <div><strong>Background call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Set up alerts when Meet is closed'}</span></div>
           <button type="button" onClick={enableNotifications}>{notificationPermission === 'granted' ? 'Finish setup' : 'Enable notifications'}</button>
-        </div>}
-        {Capacitor.isNativePlatform() && <div className="notification-row">
-          <div><strong>Native call alerts</strong><span>{nativeListening ? 'Listening for calls, even when Meet is closed' : 'Enable background calling on this phone'}</span></div>
-          <button type="button" onClick={nativeListening ? stopNativeCallAlerts : startNativeCallAlerts}>{nativeListening ? 'Stop listening' : 'Enable call alerts'}</button>
         </div>}
         <div className="secure">Your name is remembered on this device. No password or account needed.</div>
       </div>
