@@ -344,13 +344,22 @@ function App() {
   React.useEffect(() => {
     if (!Capacitor.isNativePlatform() || !name.trim()) return;
     let active = true;
-    NativeCallListener.getPendingCall().then(async result => {
-      if (!active || !result?.room) return;
-      await NativeCallListener.clearPendingCall();
-      try { await joinRoom(result.room); }
-      catch (err) { setError(err.message || 'Could not open the accepted call.'); }
-    }).catch(() => {});
-    return () => { active = false; };
+    const openPendingCall = async () => {
+      try {
+        const result = await NativeCallListener.getPendingCall();
+        if (!active || !result?.room) return;
+        await NativeCallListener.clearPendingCall();
+        await joinRoom(result.room);
+      } catch (err) {
+        if (active) setError(err.message || 'Could not open the accepted call.');
+      }
+    };
+    window.addEventListener('meetNativeResume', openPendingCall);
+    openPendingCall();
+    return () => {
+      active = false;
+      window.removeEventListener('meetNativeResume', openPendingCall);
+    };
   }, [name]);
 
   async function showSharedScreenFullscreen() {
