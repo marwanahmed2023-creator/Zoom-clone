@@ -47,10 +47,13 @@ public class CallListenerService extends Service {
             if (identity == null || identity.isEmpty()) {
                 identity = getSharedPreferences("meet_native_calls", 0).getString("identity", "");
             }
-            if (worker == null || worker.isShutdown()) worker = Executors.newSingleThreadScheduledExecutor();
+            if (worker == null || worker.isShutdown()) {
+                startForeground(SERVICE_ID, idleNotification());
+                startPolling();
+            }
             String room = intent.getStringExtra("room");
             respond(room, ACTION_ACCEPT.equals(action));
-            return START_NOT_STICKY;
+            return START_STICKY;
         }
         if (intent != null) identity = intent.getStringExtra("identity");
         if (identity == null || identity.isEmpty()) {
