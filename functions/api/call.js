@@ -1,11 +1,29 @@
 import { AccessToken } from "livekit-server-sdk";
 import { sendCallPush } from "../_push.js";
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
+function corsHeaders(request) {
+  const origin = request?.headers.get("Origin") || "";
+  const allowed = new Set(["https://localhost", "http://localhost", "capacitor://localhost", "https://zoom-clone.pages.dev"]);
+  const headers = {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-store",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Vary": "Origin",
+  };
+  if (allowed.has(origin)) headers["Access-Control-Allow-Origin"] = origin;
+  return headers;
+}
+
+function json(data, status = 200, request = null) {
+  return new Response(data === null ? null : JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    headers: corsHeaders(request),
   });
+}
+
+export async function onRequestOptions({ request }) {
+  return json(null, 204, request);
 }
 
 function clean(value, max = 50) {
