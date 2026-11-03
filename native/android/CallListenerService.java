@@ -5,7 +5,6 @@ import android.content.*;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.os.*;
-import android.media.AudioAttributes;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import org.json.JSONArray;
