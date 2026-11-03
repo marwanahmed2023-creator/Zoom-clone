@@ -178,6 +178,9 @@ function App() {
 
   async function joinRoom(roomName) {
     leavingRef.current = false;
+    if (Capacitor.isNativePlatform()) {
+      await NativeCallListener.requestMediaPermissions();
+    }
     const r = await apiFetch('/api/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -384,7 +387,10 @@ function App() {
         onError={(err) => setMeetingError('LiveKit connection error: ' + (err?.name ? err.name + ': ' : '') + (err?.message || 'Unknown error'))}
         onMediaDeviceFailure={(failure, kind) => {
           const device = kind === 'videoinput' ? 'Camera' : kind === 'audioinput' ? 'Microphone' : 'Camera or microphone';
-          setMeetingError(device + ' access failed (' + (failure || 'unknown reason') + '). Use the Allow camera & microphone button and check that the device is not blocked by the operating system or another app.');
+          const detail = failure === 'DeviceInUse'
+            ? 'Android WebView could not start audio/video capture. This can be reported for a capture-start failure, not only when another app is using the device.'
+            : 'Check the Android app permission for this device.';
+          setMeetingError(device + ' access failed (' + (failure || 'unknown reason') + '). ' + detail + ' Leave and rejoin after closing any app using the device.');
         }}
         onDisconnected={() => {
           if (!leavingRef.current) setMeetingError('You were disconnected from the meeting. You can leave and rejoin from the home screen.');
