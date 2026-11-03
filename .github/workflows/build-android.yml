@@ -29,6 +29,10 @@ jobs:
         run: npm run build
       - name: Generate Android project
         run: npx cap add android
+      - name: Install icon renderer
+        run: pip install cairosvg
+      - name: Apply Meet app icon
+        run: python3 native/android/install_icon.py
       - name: Add native incoming-call service
         run: |
           mkdir -p android/app/src/main/java/com/meet/app
