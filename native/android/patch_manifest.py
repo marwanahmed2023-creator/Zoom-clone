@@ -12,7 +12,9 @@ s = s.replace('    <application', '''    <uses-permission android:name="android.
 
     <application''', 1)
 if 'android:icon=' not in s:
-    s = s.replace('    <application', '    <application\\n        android:icon="@mipmap/ic_launcher"\\n        android:roundIcon="@mipmap/ic_launcher_round"', 1)
+    s = s.replace('    <application', '''    <application
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"''', 1)
 
 needle = '        </activity>'
 service = '''
