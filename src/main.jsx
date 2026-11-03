@@ -146,6 +146,28 @@ function App() {
   }
 
 
+  async function testBackgroundNotification() {
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch('/api/push/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identity: name.trim() })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw Error(result.error || 'The test notification could not be sent.');
+      setError(result.sent
+        ? 'Test notification sent. Close Chrome completely now and check whether it appears.'
+        : (result.message || 'No active push subscription was found for this name.'));
+    } catch (err) {
+      setError(err.message || 'Could not send the test notification.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function leaveMeeting() {
     leavingRef.current = true;
     setToken('');
@@ -400,6 +422,10 @@ function App() {
         {notificationPermission !== 'unsupported' && !pushReady && <div className="notification-row">
           <div><strong>Background call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Set up alerts when Meet is closed'}</span></div>
           <button type="button" onClick={enableNotifications}>{notificationPermission === 'granted' ? 'Finish setup' : 'Enable notifications'}</button>
+        </div>}
+        {pushReady && <div className="notification-row">
+          <div><strong>Background alerts are set up</strong><span>Send a test notification to this device</span></div>
+          <button type="button" disabled={busy} onClick={testBackgroundNotification}>{busy ? 'Sending…' : 'Test notification'}</button>
         </div>}
         <div className="secure">Your name is remembered on this device. No password or account needed.</div>
       </div>
