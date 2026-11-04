@@ -29,6 +29,8 @@
 }
 .transcript-ready { background: #f5fbf8; border-color: #dcefe5; }
 .transcript-ready button { background: #16845e; }
+.transcript-downloads { display: flex; flex-wrap: wrap; gap: 8px; }
+.transcript-downloads button { white-space: nowrap; }
 .transcript-status { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #f3f6fc; color: #59657a; font-size: 11px; }
 @media(max-width:700px) {
   .meet-recorder-controls { top: auto; right: 8px; bottom: 84px; }
