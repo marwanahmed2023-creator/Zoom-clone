@@ -22,6 +22,16 @@ function generatedText(result) {
   return '';
 }
 
+async function toBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const step = 0x8000;
+  for (let i = 0; i < bytes.length; i += step) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + step, bytes.length)));
+  }
+  return btoa(binary);
+}
+
 export async function onRequestPost({ request, env }) {
   if (!env.AI || typeof env.AI.run !== 'function') {
     return json({ error: 'Transcription is not configured yet. Add a Workers AI binding named AI to the zoom-clone Pages project and redeploy.' }, 503);
@@ -44,14 +54,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   try {
-    const bytes = new Uint8Array(audio);
-    let binary = '';
-    const step = 0x8000;
-    for (let i = 0; i < bytes.length; i += step) {
-      binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + step, bytes.length)));
-    }
-    const base64 = btoa(binary);
-
+    const base64 = await toBase64(audio);
     const originalResult = await env.AI.run('@cf/openai/whisper-large-v3-turbo', {
       audio: base64,
       task: 'transcribe',
@@ -65,38 +68,54 @@ export async function onRequestPost({ request, env }) {
 
     let translatedText = originalText;
     if (language !== 'en') {
-      const languageNames = { ar: 'Egyptian Arabic (colloquial Arabic)', zh: 'Chinese', ja: 'Japanese' };
+      // Translate from the original audio itself, not from the imperfect ASR text.
+      // This is especially important for code-switching (e.g. Arabic + English).
+      const directTranslationResult = await env.AI.run('@cf/openai/whisper-large-v3-turbo', {
+        audio: base64,
+        task: 'translate',
+        vad_filter: true,
+        beam_size: 5,
+        condition_on_previous_text: false
+      });
+      const directAudioTranslation = String(directTranslationResult?.text || '').trim();
+      if (!directAudioTranslation) {
+        return json({ error: 'The original transcript was created, but direct audio translation returned no text. Please try again.' }, 502);
+      }
+
+      const languageNames = { ar: 'Egyptian Arabic with possible English code-switching', zh: 'Chinese with possible English code-switching', ja: 'Japanese with possible English code-switching' };
       const translationResult = await env.AI.run('@cf/openai/gpt-oss-120b', {
         messages: [
           {
             role: 'system',
             content: [
-              'You are an expert human translator.',
-              'Translate the supplied transcript into clear, natural English.',
-              'The source may be colloquial Egyptian Arabic, not Modern Standard Arabic.',
-              'Understand idioms, everyday expressions, implied meaning, and context before translating.',
-              'Translate meaning faithfully rather than word-for-word.',
-              'Do not summarize, explain, add details, censor, or invent anything.',
-              'Keep names, numbers, dates, and technical terms accurate.',
-              'Preserve the speaker order and paragraph breaks where practical.',
-              'If a phrase is genuinely unclear, translate only what is clear and preserve the uncertainty; do not guess.',
-              'Return only the English translation. No introduction, notes, labels, or quotation marks.'
+              'You are an expert human meeting interpreter and transcript editor.',
+              'Produce a faithful, natural English translation of the meeting.',
+              'The source is ' + (languageNames[language] || 'a non-English language') + '.',
+              'The first reference is a translation generated directly from the original audio. Treat it as the primary evidence for what was spoken.',
+              'The second reference is an automatic transcript in the source language. Use it only to clarify context and names, not to override clear English phrases from the audio translation.',
+              'The speakers may switch between Arabic and English within the same sentence.',
+              'Keep words and phrases that were spoken in English as English; do not translate, transliterate, or replace them with guesses.',
+              'Understand Egyptian colloquial expressions and idioms by meaning, not word-for-word.',
+              'Do not summarize, add information, or invent words that are not supported by the references.',
+              'Preserve names, numbers, technical terms, speaker order, and meaning.',
+              'If a phrase is unclear, keep the uncertainty rather than guessing.',
+              'Return only the final English transcript, with no explanation or labels.'
             ].join(' ')
           },
           {
             role: 'user',
-            content: 'Translate this ' + (languageNames[language] || 'non-English') + ' meeting transcript into English:\n\n' + originalText
+            content: 'DIRECT TRANSLATION FROM AUDIO:\n' + directAudioTranslation + '\n\nSOURCE-LANGUAGE TRANSCRIPT FOR CONTEXT ONLY:\n' + originalText
           }
         ],
         temperature: 0.1,
         max_tokens: 12000
       });
-      translatedText = generatedText(translationResult);
-      if (!translatedText) {
-        return json({ error: 'The original transcript was created, but the English translation model returned no text. Please try again.' }, 502);
-      }
+      translatedText = generatedText(translationResult) || directAudioTranslation;
       if (/[\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF]/.test(translatedText)) {
-        return json({ error: 'The translation model did not return English text. Please try again.' }, 502);
+        translatedText = directAudioTranslation;
+      }
+      if (!translatedText) {
+        return json({ error: 'The original transcript was created, but the English translation returned no text. Please try again.' }, 502);
       }
     }
 
