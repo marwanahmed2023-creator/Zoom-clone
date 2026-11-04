@@ -34,19 +34,24 @@ export async function onRequestPost({ request, env }) {
       binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + step, bytes.length)));
     }
     const base64 = btoa(binary);
-    const prompt = language === 'ar'
-      ? 'The speakers primarily use Egyptian Arabic (Masri), colloquial Egyptian expressions, and may switch between Arabic and English. Understand Egyptian colloquial speech and translate the meaning faithfully into natural English. Preserve names and technical terms.'
-      : 'Translate the spoken content faithfully into natural English. Preserve names and technical terms.';
-    const result = await env.AI.run('@cf/openai/whisper-large-v3-turbo', {
+    const originalResult = await env.AI.run('@cf/openai/whisper-large-v3-turbo', {
+      audio: base64,
+      task: 'transcribe',
+      language,
+      vad_filter: true
+    });
+    const originalText = String(originalResult?.text || '').trim();
+    if (!originalText) return json({ error: 'No clear speech was detected.' }, 422);
+
+    const translatedResult = await env.AI.run('@cf/openai/whisper-large-v3-turbo', {
       audio: base64,
       task: 'translate',
       language,
-      initial_prompt: prompt,
       vad_filter: true
     });
-    const text = String(result?.text || '').trim();
-    if (!text) return json({ error: 'No clear speech was detected.' }, 422);
-    return json({ text });
+    const translatedText = String(translatedResult?.text || '').trim();
+    if (!translatedText) return json({ error: 'The original transcript was created, but English translation was unavailable.' }, 502);
+    return json({ originalText, translatedText });
   } catch (error) {
     return json({ error: 'Transcription service error: ' + (error?.message || 'unknown error') }, 502);
   }
