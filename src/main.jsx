@@ -3,6 +3,53 @@ import { createRoot } from 'react-dom/client';
 import { LiveKitRoom, VideoConference, useParticipants } from '@livekit/components-react';
 import '@livekit/components-styles';
 import './style.css';
+import MeetingRecorder from './MeetingRecorder.jsx';
+
+const RECORD_DB = 'meet-local-recordings';
+function openRecordDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(RECORD_DB, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('assets', { keyPath: 'key' });
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+async function saveRecordAsset(key, value) {
+  const db = await openRecordDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('assets', 'readwrite');
+    tx.objectStore('assets').put({ key, value });
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+async function readRecordAsset(key) {
+  const db = await openRecordDb();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction('assets', 'readonly').objectStore('assets').get(key);
+    request.onsuccess = () => { db.close(); resolve(request.result?.value ?? null); };
+    request.onerror = () => { db.close(); reject(request.error); };
+  });
+}
+async function deleteRecordAsset(key) {
+  const db = await openRecordDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('assets', 'readwrite');
+    tx.objectStore('assets').delete(key);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+function downloadLocalBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
 
 function AutoSaveMeetingContacts({ currentName, onRemember }) {
   const participants = useParticipants();
@@ -43,10 +90,65 @@ function App() {
   const [meetingError, setMeetingError] = React.useState('');
   const [notificationPermission, setNotificationPermission] = React.useState(() => typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
   const [pushReady, setPushReady] = React.useState(() => { try { return localStorage.getItem('meet-push-ready') === 'yes'; } catch { return false; } });
+  const [pendingVideo, setPendingVideo] = React.useState(null);
+  const [transcriptText, setTranscriptText] = React.useState('');
+  const [transcriptStatus, setTranscriptStatus] = React.useState('');
+  const recorderRef = React.useRef(null);
   const audioContextRef = React.useRef(null);
   const [mediaReady, setMediaReady] = React.useState(false);
   const leavingRef = React.useRef(false);
   const notifiedCallRef = React.useRef('');
+
+  React.useEffect(() => {
+    let active = true;
+    Promise.all([readRecordAsset('video'), readRecordAsset('transcript')]).then(([video, transcript]) => {
+      if (!active) return;
+      if (video) setPendingVideo(video);
+      if (transcript) { setTranscriptText(transcript); setTranscriptStatus('ready'); }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const handleRecordingFinished = React.useCallback(async ({ videoBlob, audioChunks, language }) => {
+    if (videoBlob?.size) {
+      setPendingVideo(videoBlob);
+      try { await saveRecordAsset('video', videoBlob); }
+      catch { setError('The recording finished, but this browser could not save it locally. Download it before closing this page.'); }
+    }
+    const audioBlob = new Blob(audioChunks || [], { type: audioChunks?.[0]?.type || 'audio/webm' });
+    if (!audioBlob.size) { setTranscriptStatus('unavailable'); return; }
+    setTranscriptStatus('processing');
+    try {
+      const response = await fetch('/api/transcribe?language=' + encodeURIComponent(language || 'ar'), {
+        method: 'POST', headers: { 'Content-Type': audioBlob.type }, body: audioBlob
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Transcription could not be completed.');
+      const text = String(result.text || '').trim();
+      if (!text) throw new Error('No speech was detected in the recording.');
+      setTranscriptText(text);
+      setTranscriptStatus('ready');
+      await saveRecordAsset('transcript', text);
+    } catch (err) {
+      setTranscriptStatus('error');
+      setError('The video was saved, but the transcript failed: ' + (err.message || 'Please try again later.'));
+    }
+  }, []);
+
+  function downloadPreviousMeeting() {
+    if (!pendingVideo) return;
+    downloadLocalBlob(pendingVideo, 'meet-previous-meeting.webm');
+    setPendingVideo(null);
+    deleteRecordAsset('video').catch(() => {});
+  }
+
+  function downloadTranscript() {
+    if (!transcriptText) return;
+    downloadLocalBlob(new Blob([transcriptText], { type: 'text/plain;charset=utf-8' }), 'meet-transcript.txt');
+    setTranscriptText('');
+    setTranscriptStatus('');
+    deleteRecordAsset('transcript').catch(() => {});
+  }
 
   React.useEffect(() => {
     const unlockAudio = () => {
@@ -146,8 +248,12 @@ function App() {
   }
 
 
-  function leaveMeeting() {
+  async function leaveMeeting() {
     leavingRef.current = true;
+    if (recorderRef.current?.isRecording()) {
+      setMeetingError('Finishing your recording…');
+      await recorderRef.current.stopAndFinalize();
+    }
     setToken('');
     setUrl('');
     setRoom('');
@@ -352,6 +458,7 @@ function App() {
         }}
       >
         <AutoSaveMeetingContacts currentName={name} onRemember={rememberContact} />
+        <MeetingRecorder ref={recorderRef} onFinished={handleRecordingFinished} />
         <VideoConference />
       </LiveKitRoom>
     </div>;
@@ -396,6 +503,10 @@ function App() {
           <input value={room} onChange={e=>setRoom(e.target.value)} placeholder="Enter a code or leave blank"/>
           <button className="secondary" disabled={busy}>Start / Join meeting <span>→</span></button>
         </form>
+        {pendingVideo && <div className="previous-recording"><strong>Your previous meeting is ready</strong><button type="button" onClick={downloadPreviousMeeting}>Download previous meeting ↓</button></div>}
+        {transcriptStatus === 'processing' && <div className="transcript-status">Preparing your transcript…</div>}
+        {transcriptStatus === 'ready' && transcriptText && <div className="previous-recording transcript-ready"><strong>Meeting transcript is ready</strong><button type="button" onClick={downloadTranscript}>Download transcript ↓</button></div>}
+        {transcriptStatus === 'error' && <div className="transcript-status">Transcript could not be created. Your video recording is still available.</div>}
         {error&&<div className="error" role="alert">{error}</div>}
         {notificationPermission !== 'unsupported' && !pushReady && <div className="notification-row">
           <div><strong>Background call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Set up alerts when Meet is closed'}</span></div>
