@@ -5,6 +5,23 @@ function json(data, status = 200) {
   });
 }
 
+function generatedText(result) {
+  if (typeof result === 'string') return result.trim();
+  const direct = result?.response ?? result?.output_text ?? result?.text;
+  if (typeof direct === 'string' && direct.trim()) return direct.trim();
+  const choiceText = result?.choices?.[0]?.message?.content;
+  if (typeof choiceText === 'string' && choiceText.trim()) return choiceText.trim();
+  if (Array.isArray(result?.output)) {
+    return result.output
+      .flatMap(item => Array.isArray(item.content) ? item.content : [])
+      .filter(item => item.type === 'output_text' || item.type === 'text')
+      .map(item => item.text || '')
+      .join('\n')
+      .trim();
+  }
+  return '';
+}
+
 export async function onRequestPost({ request, env }) {
   if (!env.AI || typeof env.AI.run !== 'function') {
     return json({ error: 'Transcription is not configured yet. Add a Workers AI binding named AI to the zoom-clone Pages project and redeploy.' }, 503);
@@ -46,22 +63,40 @@ export async function onRequestPost({ request, env }) {
     const originalText = String(originalResult?.text || '').trim();
     if (!originalText) return json({ error: 'No clear speech was detected.' }, 422);
 
-    // Translate recognized source-language text with a dedicated translation
-    // model, then reject output that is clearly still in the source script.
     let translatedText = originalText;
     if (language !== 'en') {
-      const languageNames = { ar: 'arabic', zh: 'chinese', ja: 'japanese' };
-      const translationResult = await env.AI.run('@cf/meta/m2m100-1.2b', {
-        text: originalText,
-        source_lang: languageNames[language],
-        target_lang: 'english'
+      const languageNames = { ar: 'Egyptian Arabic (colloquial Arabic)', zh: 'Chinese', ja: 'Japanese' };
+      const translationResult = await env.AI.run('@cf/openai/gpt-oss-120b', {
+        messages: [
+          {
+            role: 'system',
+            content: [
+              'You are an expert human translator.',
+              'Translate the supplied transcript into clear, natural English.',
+              'The source may be colloquial Egyptian Arabic, not Modern Standard Arabic.',
+              'Understand idioms, everyday expressions, implied meaning, and context before translating.',
+              'Translate meaning faithfully rather than word-for-word.',
+              'Do not summarize, explain, add details, censor, or invent anything.',
+              'Keep names, numbers, dates, and technical terms accurate.',
+              'Preserve the speaker order and paragraph breaks where practical.',
+              'If a phrase is genuinely unclear, translate only what is clear and preserve the uncertainty; do not guess.',
+              'Return only the English translation. No introduction, notes, labels, or quotation marks.'
+            ].join(' ')
+          },
+          {
+            role: 'user',
+            content: 'Translate this ' + (languageNames[language] || 'non-English') + ' meeting transcript into English:\n\n' + originalText
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 12000
       });
-      translatedText = String(translationResult?.translated_text || '').trim();
+      translatedText = generatedText(translationResult);
       if (!translatedText) {
-        return json({ error: 'The original transcript was created, but the English translation service returned no text. Please try again.' }, 502);
+        return json({ error: 'The original transcript was created, but the English translation model returned no text. Please try again.' }, 502);
       }
       if (/[\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF]/.test(translatedText)) {
-        return json({ error: 'The translation service did not return English text. Please try again.' }, 502);
+        return json({ error: 'The translation model did not return English text. Please try again.' }, 502);
       }
     }
 
