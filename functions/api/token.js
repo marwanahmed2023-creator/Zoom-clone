@@ -1,7 +1,7 @@
 import { AccessToken } from "livekit-server-sdk";
 
 function corsHeaders(request) {
-  const headers = {
+  return {
     "Content-Type": "application/json",
     "Cache-Control": "no-store, no-cache, must-revalidate",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -9,8 +9,6 @@ function corsHeaders(request) {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Max-Age": "86400",
   };
-  if (allowed.has(origin)) headers["Access-Control-Allow-Origin"] = origin;
-  return headers;
 }
 
 function json(data, status = 200, request = null) {
