@@ -34,6 +34,7 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
   const [recording, setRecording] = React.useState(false);
   const [language, setLanguage] = React.useState('ar');
   const [elapsed, setElapsed] = React.useState(0);
+  const [remoteRecording, setRemoteRecording] = React.useState(null);
   const recorderRef = React.useRef(null);
   const audioRecorderRef = React.useRef(null);
   const audioContextRef = React.useRef(null);
@@ -48,6 +49,13 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
   const stopPromiseRef = React.useRef(null);
   const resolveStopRef = React.useRef(null);
   const languageRef = React.useRef(language);
+  const broadcastRecording = React.useCallback(active => {
+    const payload = new TextEncoder().encode(JSON.stringify({
+      type: 'meet-recording-state', active,
+      owner: room.localParticipant.name || room.localParticipant.identity
+    }));
+    room.localParticipant.publishData(payload, { reliable: true }).catch(() => {});
+  }, [room]);
 
   React.useEffect(() => { languageRef.current = language; }, [language]);
 
@@ -141,6 +149,7 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
     audioRecorder.ondataavailable = event => { if (event.data?.size) audioChunksRef.current.push(event.data); };
     videoRecorder.onerror = () => finishRecording();
     videoRecorder.onstop = () => {
+      broadcastRecording(false);
       const videoBlob = new Blob(videoChunksRef.current, { type: videoMime });
       const audioChunks = [...audioChunksRef.current];
       const selectedLanguage = languageRef.current;
@@ -155,11 +164,12 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
     startedAtRef.current = Date.now();
     videoRecorder.start(1000);
     audioRecorder.start(AUDIO_CHUNK_MS);
+    broadcastRecording(true);
     setRecording(true);
     setElapsed(0);
     animationRef.current = requestAnimationFrame(drawFrame);
     timerRef.current = window.setInterval(() => setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000)), 1000);
-  }, [recording, connectAudioTracks, drawFrame, onFinished]);
+  }, [recording, connectAudioTracks, drawFrame, onFinished, broadcastRecording]);
 
   const cleanup = React.useCallback(() => {
     cancelAnimationFrame(animationRef.current);
@@ -198,12 +208,25 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
   }), [finishRecording]);
 
   React.useEffect(() => {
+    const onData = payload => {
+      try {
+        const message = JSON.parse(new TextDecoder().decode(payload));
+        if (message?.type === 'meet-recording-state') setRemoteRecording(message.active ? { owner: message.owner || 'A participant' } : null);
+      } catch {}
+    };
+    const onParticipantLeft = participant => {
+      setRemoteRecording(current => current && current.owner === (participant.name || participant.identity) ? null : current);
+    };
+    room.on(RoomEvent.DataReceived, onData);
+    room.on(RoomEvent.ParticipantDisconnected, onParticipantLeft);
     const update = () => connectAudioTracks();
     room.on(RoomEvent.TrackSubscribed, update);
     room.on(RoomEvent.TrackPublished, update);
     room.on(RoomEvent.LocalTrackPublished, update);
     room.on(RoomEvent.TrackUnsubscribed, update);
     return () => {
+      room.off(RoomEvent.DataReceived, onData);
+      room.off(RoomEvent.ParticipantDisconnected, onParticipantLeft);
       room.off(RoomEvent.TrackSubscribed, update);
       room.off(RoomEvent.TrackPublished, update);
       room.off(RoomEvent.LocalTrackPublished, update);
@@ -226,7 +249,9 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
     return mins + ':' + secs;
   };
 
-  return <div className="meet-recorder-controls">
+  return <>
+    {remoteRecording && <div className="recording-notice">● This meeting is being recorded by {remoteRecording.owner}</div>}
+    <div className="meet-recorder-controls">
     {recording ? <>
       <span className="recording-indicator"><i/> REC {formatTime(elapsed)}</span>
       <button type="button" className="record-stop" onClick={finishRecording}>Stop recording</button>
@@ -239,7 +264,8 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
       </select>
       <button type="button" className="record-start" onClick={() => startRecording().catch(error => window.alert(error.message))}>● Record</button>
     </>}
-  </div>;
+    </div>
+  </>;
 });
 
 export default MeetingRecorder;
