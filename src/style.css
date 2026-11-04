@@ -304,3 +304,20 @@
 .brand-icon { width: 36px; height: 36px; object-fit: cover; border-radius: 10px; background: transparent; }
 .card-mark { width: 48px; height: 48px; object-fit: cover; padding: 0; border-radius: 13px; background: transparent; }
 .meeting-head .brand-icon { width: 29px; height: 29px; border-radius: 8px; }
+
+/* Convo transcript reading page */
+.transcript-page { min-height: 100vh; }
+.transcript-page nav { margin-bottom: 42px; }
+.transcript-back { border: 1px solid #e1e6f0; background: #fff; color: #35415b; border-radius: 9px; padding: 10px 14px; font: 600 12px 'DM Sans',sans-serif; cursor: pointer; }
+.transcript-viewer { max-width: 850px; margin: 0 auto 70px; }
+.transcript-heading { margin-bottom: 28px; }
+.transcript-heading > span { color: #4169f5; font-size: 10px; font-weight: 800; letter-spacing: 1.8px; }
+.transcript-heading h1 { margin: 12px 0 8px; font-size: clamp(30px,4vw,44px); letter-spacing: -1.8px; }
+.transcript-heading p { color: #7d879b; font-size: 14px; }
+.transcript-tabs { display: flex; gap: 8px; border-bottom: 1px solid #e6eaf2; margin-bottom: 20px; }
+.transcript-tabs button { padding: 12px 15px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #7d879b; font: 700 12px 'DM Sans',sans-serif; cursor: pointer; }
+.transcript-tabs button.active { color: #4169f5; border-bottom-color: #4169f5; }
+.transcript-paper { min-height: 340px; padding: 30px; border: 1px solid #e7ebf3; border-radius: 14px; background: #fff; box-shadow: 0 12px 35px #26375a08; }
+.transcript-paper h2 { margin: 0 0 20px; color: #27334a; font: 700 18px Manrope,sans-serif; }
+.transcript-paper p { margin: 0; color: #35415b; font-size: 15px; line-height: 2; white-space: pre-wrap; overflow-wrap: anywhere; unicode-bidi: plaintext; }
+@media(max-width:600px) { .transcript-page { padding: 0 18px; } .transcript-page nav { margin-bottom: 28px; height: 72px; } .transcript-paper { padding: 20px; } .transcript-tabs button { padding: 11px 9px; font-size: 11px; } }
