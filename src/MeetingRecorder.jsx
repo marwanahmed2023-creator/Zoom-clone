@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useRoomContext } from '@livekit/components-react';
 import { RoomEvent } from 'livekit-client';
 import './recorder.css';
@@ -35,6 +36,7 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
   const [language, setLanguage] = React.useState('ar');
   const [elapsed, setElapsed] = React.useState(0);
   const [remoteRecording, setRemoteRecording] = React.useState(null);
+  const [controlHost, setControlHost] = React.useState(null);
   const recorderRef = React.useRef(null);
   const audioRecorderRef = React.useRef(null);
   const audioContextRef = React.useRef(null);
@@ -58,6 +60,37 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
   }, [room]);
 
   React.useEffect(() => { languageRef.current = language; }, [language]);
+
+  React.useEffect(() => {
+    let host = null;
+    let observer = null;
+    const attach = () => {
+      const bar = document.querySelector('.lk-control-bar');
+      if (!bar) return false;
+      const shareButton = bar.querySelector('[data-lk-source="screen_share"], button[aria-label*="Share screen" i], button[aria-label*="Start screen share" i]');
+      if (!host) {
+        host = document.createElement('div');
+        host.className = 'meet-recorder-host';
+      }
+      if (shareButton?.parentElement === bar) {
+        if (host.parentElement !== bar || host.previousElementSibling !== shareButton) shareButton.after(host);
+      } else if (host.parentElement !== bar) {
+        bar.appendChild(host);
+      }
+      setControlHost(host);
+      return true;
+    };
+    attach();
+    observer = new MutationObserver(() => attach());
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      observer?.disconnect();
+      if (host?.parentElement) host.remove();
+      setControlHost(null);
+    };
+  }, []);
+
+
 
   const connectAudioTracks = React.useCallback(() => {
     const context = audioContextRef.current;
@@ -251,21 +284,21 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
 
   return <>
     {remoteRecording && <div className="recording-notice">● This meeting is being recorded by {remoteRecording.owner}</div>}
-    <div className="meet-recorder-controls">
-    {recording ? <>
-      <span className="recording-indicator"><i/> REC {formatTime(elapsed)}</span>
-      <button type="button" className="record-stop" onClick={finishRecording}>Stop recording</button>
-    </> : <>
-      <select aria-label="Transcript language" value={language} onChange={event => setLanguage(event.target.value)}>
-        <option value="ar">Egyptian Arabic</option>
-        <option value="en">English</option>
-        <option value="zh">Chinese</option>
-        <option value="ja">Japanese</option>
-      </select>
-      <button type="button" className="record-start" onClick={() => startRecording().catch(error => window.alert(error.message))}>● Record</button>
-    </>}
-    </div>
-  </>;
+    {controlHost && createPortal(<div className="meet-recorder-controls">
+      {recording ? <>
+        <span className="recording-indicator"><i/> REC {formatTime(elapsed)}</span>
+        <button type="button" className="record-stop" onClick={finishRecording}>Stop</button>
+      </> : <>
+        <select aria-label="Transcript language" value={language} onChange={event => setLanguage(event.target.value)}>
+          <option value="ar">Egyptian Arabic</option>
+          <option value="en">English</option>
+          <option value="zh">Chinese</option>
+          <option value="ja">Japanese</option>
+        </select>
+        <button type="button" className="record-start" onClick={() => startRecording().catch(error => window.alert(error.message))}>● Record</button>
+      </>}
+    </div>, controlHost)}
+  </>;>;
 });
 
 export default MeetingRecorder;
