@@ -35,3 +35,10 @@
   .meet-recorder-controls select { max-width: 116px; }
   .previous-recording { align-items: flex-start; flex-direction: column; }
 }
+
+.recording-notice {
+  position: fixed; z-index: 1199; top: 58px; left: 50%; transform: translateX(-50%);
+  max-width: calc(100vw - 24px); padding: 9px 14px; border: 1px solid #ff687766;
+  border-radius: 9px; background: #421f2aef; color: #fff;
+  font-size: 12px; font-weight: 700; text-align: center; box-shadow: 0 5px 18px #0003;
+}
