@@ -485,7 +485,7 @@ function App() {
   if (token) {
     return <div className="meeting">
       <header className="meeting-head">
-        <div className="brand"><span className="brand-icon">m</span> meet<span className="live">LIVE</span></div>
+        <div className="brand"><img className="brand-icon" src="/brand-icon.svg" alt="" /> Nexora<span className="live">LIVE</span></div>
         <div className="room-label">Meeting · {room}</div>
         <button className="screen-only" onClick={showSharedScreenFullscreen} title="Show only the shared screen">Screen only ⛶</button>
         <button className="leave" onClick={leaveMeeting}>Leave meeting</button>
@@ -513,7 +513,7 @@ function App() {
   }
 
   return <main>
-    <nav><div className="brand"><span className="brand-icon">m</span> meet</div><span className="nav-note">Video meetings, made simple.</span></nav>
+    <nav><div className="brand"><img className="brand-icon" src="/brand-icon.svg" alt="" /> Nexora</div><span className="nav-note">Video meetings, made simple.</span></nav>
     <section className="hero">
       <div className="hero-copy">
         <div className="eyebrow"><i/> SIMPLE. CLEAR. CONNECTED.</div>
@@ -522,7 +522,7 @@ function App() {
         <div className="pills"><span>✦ HD video</span><span>↗ Screen sharing</span><span>◉ In-meeting chat</span></div>
       </div>
       <div className="join-card">
-        <div className="card-mark">m</div>
+        <img className="card-mark" src="/brand-icon.svg" alt="Nexora" />
         <h2>Start a meeting</h2>
         <p className="card-sub">Your next conversation is one click away.</p>
         <div className="profile-label">
@@ -568,7 +568,7 @@ function App() {
       <div><b>02</b><strong>Share your screen</strong><span>Present tabs, windows or your screen.</span></div>
       <div><b>03</b><strong>Stay in sync</strong><span>Participant grid and meeting chat.</span></div>
     </section>
-    <footer>MEET · A simple place to connect <span>Built for conversations.</span></footer>
+    <footer>NEXORA · A simple place to connect <span>Built for conversations.</span></footer>
 
     {incoming && <div className="call-overlay">
       <div className="call-dialog">
