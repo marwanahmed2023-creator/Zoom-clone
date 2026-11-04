@@ -35,11 +35,11 @@ export async function onRequestPost({ request, env }) {
     }
     const base64 = btoa(binary);
     const prompt = language === 'ar'
-      ? 'The speakers primarily use Egyptian Arabic (Masri), colloquial Egyptian expressions, and may switch between Arabic and English. Transcribe what is actually said verbatim in Arabic script. Preserve English words in English when clearly spoken. Do not translate or rewrite into Modern Standard Arabic.'
-      : 'Transcribe the speech verbatim in its original language. Do not translate or summarize.';
+      ? 'The speakers primarily use Egyptian Arabic (Masri), colloquial Egyptian expressions, and may switch between Arabic and English. Understand Egyptian colloquial speech and translate the meaning faithfully into natural English. Preserve names and technical terms.'
+      : 'Translate the spoken content faithfully into natural English. Preserve names and technical terms.';
     const result = await env.AI.run('@cf/openai/whisper-large-v3-turbo', {
       audio: base64,
-      task: 'transcribe',
+      task: 'translate',
       language,
       initial_prompt: prompt,
       vad_filter: true
