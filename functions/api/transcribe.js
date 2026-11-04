@@ -50,7 +50,6 @@ export async function onRequestPost({ request, env }) {
       vad_filter: true
     });
     const translatedText = String(translatedResult?.text || '').trim();
-    if (!translatedText) return json({ error: 'The original transcript was created, but English translation was unavailable.' }, 502);
     return json({ originalText, translatedText });
   } catch (error) {
     return json({ error: 'Transcription service error: ' + (error?.message || 'unknown error') }, 502);
