@@ -1,5 +1,5 @@
 .meet-recorder-controls {
-  position: fixed; z-index: 1200; top: 12px; right: 190px;
+  position: fixed; z-index: 1200; top: auto; right: 16px; bottom: 88px;
   display: flex; align-items: center; gap: 8px;
   padding: 6px 8px; border: 1px solid #ffffff26; border-radius: 11px;
   background: #151b29ed; box-shadow: 0 5px 20px #0003;
@@ -33,7 +33,7 @@
 .transcript-downloads button { white-space: nowrap; }
 .transcript-status { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #f3f6fc; color: #59657a; font-size: 11px; }
 @media(max-width:700px) {
-  .meet-recorder-controls { top: auto; right: 8px; bottom: 84px; }
+  .meet-recorder-controls { right: 8px; bottom: 88px; }
   .meet-recorder-controls select { max-width: 116px; }
   .previous-recording { align-items: flex-start; flex-direction: column; }
 }
