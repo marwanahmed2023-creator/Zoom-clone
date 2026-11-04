@@ -16,7 +16,7 @@ export async function onRequestPost({ request, env }) {
   if (!allowed.has(language)) return json({ error: 'Unsupported transcript language.' }, 400);
 
   const contentType = request.headers.get('content-type') || 'audio/webm';
-  if (!/^audio\\//i.test(contentType) && !/webm|mp4|mpeg|wav|ogg/i.test(contentType)) {
+  if (!/^audio\//i.test(contentType) && !/webm|mp4|mpeg|wav|ogg/i.test(contentType)) {
     return json({ error: 'The uploaded recording audio format is not supported.' }, 415);
   }
 
@@ -46,9 +46,8 @@ export async function onRequestPost({ request, env }) {
     const originalText = String(originalResult?.text || '').trim();
     if (!originalText) return json({ error: 'No clear speech was detected.' }, 422);
 
-    // Whisper's translate task can return text in the source language on some
-    // runs. Translate the recognized source-language text with a dedicated
-    // text-translation model so the English download is genuinely English.
+    // Translate recognized source-language text with a dedicated translation
+    // model, then reject output that is clearly still in the source script.
     let translatedText = originalText;
     if (language !== 'en') {
       const languageNames = { ar: 'arabic', zh: 'chinese', ja: 'japanese' };
@@ -61,8 +60,7 @@ export async function onRequestPost({ request, env }) {
       if (!translatedText) {
         return json({ error: 'The original transcript was created, but the English translation service returned no text. Please try again.' }, 502);
       }
-      // Do not silently offer source-script text as an English translation.
-      if (/[\\u0600-\\u06FF\\u4E00-\\u9FFF\\u3040-\\u30FF]/.test(translatedText)) {
+      if (/[\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF]/.test(translatedText)) {
         return json({ error: 'The translation service did not return English text. Please try again.' }, 502);
       }
     }
