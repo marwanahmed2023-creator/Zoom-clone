@@ -1,0 +1,37 @@
+.meet-recorder-controls {
+  position: fixed; z-index: 1200; top: 12px; right: 190px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border: 1px solid #ffffff26; border-radius: 11px;
+  background: #151b29ed; box-shadow: 0 5px 20px #0003;
+}
+.meet-recorder-controls select {
+  max-width: 138px; min-width: 0; padding: 8px 9px; border: 1px solid #ffffff26;
+  border-radius: 7px; background: #252e40; color: #fff; font-size: 11px;
+}
+.meet-recorder-controls button {
+  border: 0; border-radius: 7px; padding: 9px 12px; color: #fff;
+  font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap;
+}
+.record-start { background: #d83c50; }
+.record-stop { background: #3b465a; }
+.recording-indicator { display: flex; align-items: center; gap: 6px; color: #fff; font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.recording-indicator i { width: 8px; height: 8px; border-radius: 50%; background: #ff455d; animation: record-pulse 1s infinite; }
+@keyframes record-pulse { 50% { opacity: .35; } }
+.previous-recording {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 14px; padding: 12px; border: 1px solid #dfe5f4;
+  border-radius: 10px; background: #f7f9ff;
+}
+.previous-recording strong { color: #26334b; font-size: 12px; }
+.previous-recording button {
+  border: 0; border-radius: 8px; padding: 10px 12px; background: #4169f5;
+  color: #fff; font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.transcript-ready { background: #f5fbf8; border-color: #dcefe5; }
+.transcript-ready button { background: #16845e; }
+.transcript-status { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #f3f6fc; color: #59657a; font-size: 11px; }
+@media(max-width:700px) {
+  .meet-recorder-controls { top: auto; right: 8px; bottom: 84px; }
+  .meet-recorder-controls select { max-width: 116px; }
+  .previous-recording { align-items: flex-start; flex-direction: column; }
+}
