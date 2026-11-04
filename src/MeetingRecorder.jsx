@@ -72,8 +72,8 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
         host = document.createElement('div');
         host.className = 'meet-recorder-host';
       }
-      if (shareButton?.parentElement === bar) {
-        if (host.parentElement !== bar || host.previousElementSibling !== shareButton) shareButton.after(host);
+      if (shareButton) {
+        if (host.parentElement !== shareButton.parentElement || host.previousElementSibling !== shareButton) shareButton.after(host);
       } else if (host.parentElement !== bar) {
         bar.appendChild(host);
       }
@@ -298,7 +298,7 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
         <button type="button" className="record-start" onClick={() => startRecording().catch(error => window.alert(error.message))}>● Record</button>
       </>}
     </div>, controlHost)}
-  </>;>;
+  </>;
 });
 
 export default MeetingRecorder;
