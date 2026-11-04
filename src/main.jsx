@@ -91,7 +91,8 @@ function App() {
   const [notificationPermission, setNotificationPermission] = React.useState(() => typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
   const [pushReady, setPushReady] = React.useState(() => { try { return localStorage.getItem('meet-push-ready') === 'yes'; } catch { return false; } });
   const [pendingVideo, setPendingVideo] = React.useState(null);
-  const [transcriptText, setTranscriptText] = React.useState('');
+  const [originalTranscriptText, setOriginalTranscriptText] = React.useState('');
+  const [translatedTranscriptText, setTranslatedTranscriptText] = React.useState('');
   const [transcriptStatus, setTranscriptStatus] = React.useState('');
   const recorderRef = React.useRef(null);
   const audioContextRef = React.useRef(null);
@@ -101,10 +102,14 @@ function App() {
 
   React.useEffect(() => {
     let active = true;
-    Promise.all([readRecordAsset('video'), readRecordAsset('transcript')]).then(([video, transcript]) => {
+    Promise.all([readRecordAsset('video'), readRecordAsset('originalTranscript'), readRecordAsset('translatedTranscript'), readRecordAsset('transcript')]).then(([video, original, translated, legacy]) => {
       if (!active) return;
       if (video) setPendingVideo(video);
-      if (transcript) { setTranscriptText(transcript); setTranscriptStatus('ready'); }
+      if (original) setOriginalTranscriptText(original);
+      if (translated) setTranslatedTranscriptText(translated);
+      // Older saved transcripts were English translations, so keep them under that label.
+      if (!translated && legacy) setTranslatedTranscriptText(legacy);
+      if (original || translated || legacy) setTranscriptStatus('ready');
     }).catch(() => {});
     return () => { active = false; };
   }, []);
@@ -124,11 +129,16 @@ function App() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Transcription could not be completed.');
-      const text = String(result.text || '').trim();
-      if (!text) throw new Error('No speech was detected in the recording.');
-      setTranscriptText(text);
+      const originalText = String(result.originalText || '').trim();
+      const translatedText = String(result.translatedText || '').trim();
+      if (!originalText && !translatedText) throw new Error('No speech was detected in the recording.');
+      setOriginalTranscriptText(originalText);
+      setTranslatedTranscriptText(translatedText);
       setTranscriptStatus('ready');
-      await saveRecordAsset('transcript', text);
+      await Promise.all([
+        saveRecordAsset('originalTranscript', originalText),
+        saveRecordAsset('translatedTranscript', translatedText)
+      ]);
     } catch (err) {
       setTranscriptStatus('error');
       setError('The video was saved, but the transcript failed: ' + (err.message || 'Please try again later.'));
@@ -142,12 +152,14 @@ function App() {
     deleteRecordAsset('video').catch(() => {});
   }
 
-  function downloadTranscript() {
-    if (!transcriptText) return;
-    downloadLocalBlob(new Blob([transcriptText], { type: 'text/plain;charset=utf-8' }), 'meet-transcript.txt');
-    setTranscriptText('');
-    setTranscriptStatus('');
-    deleteRecordAsset('transcript').catch(() => {});
+  function downloadOriginalTranscript() {
+    if (!originalTranscriptText) return;
+    downloadLocalBlob(new Blob([originalTranscriptText], { type: 'text/plain;charset=utf-8' }), 'meet-original-transcript.txt');
+  }
+
+  function downloadTranslatedTranscript() {
+    if (!translatedTranscriptText) return;
+    downloadLocalBlob(new Blob([translatedTranscriptText], { type: 'text/plain;charset=utf-8' }), 'meet-english-translation.txt');
   }
 
   React.useEffect(() => {
@@ -505,7 +517,7 @@ function App() {
         </form>
         {pendingVideo && <div className="previous-recording"><strong>Your previous meeting is ready</strong><button type="button" onClick={downloadPreviousMeeting}>Download previous meeting ↓</button></div>}
         {transcriptStatus === 'processing' && <div className="transcript-status">Preparing your transcript…</div>}
-        {transcriptStatus === 'ready' && transcriptText && <div className="previous-recording transcript-ready"><strong>Meeting transcript is ready</strong><button type="button" onClick={downloadTranscript}>Download transcript ↓</button></div>}
+        {transcriptStatus === 'ready' && (originalTranscriptText || translatedTranscriptText) && <div className="previous-recording transcript-ready"><strong>Meeting transcripts are ready</strong><div className="transcript-downloads">{originalTranscriptText && <button type="button" onClick={downloadOriginalTranscript}>Original transcript ↓</button>}{translatedTranscriptText && <button type="button" onClick={downloadTranslatedTranscript}>English translation ↓</button>}</div></div>}
         {transcriptStatus === 'error' && <div className="transcript-status">Transcript could not be created. Your video recording is still available.</div>}
         {error&&<div className="error" role="alert">{error}</div>}
         {notificationPermission !== 'unsupported' && !pushReady && <div className="notification-row">
