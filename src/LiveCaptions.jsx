@@ -107,7 +107,7 @@ const LiveCaptions = () => {
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || 'Live captions could not process this audio.');
-        const text = String(translate ? result.translatedText : result.originalText || '').trim();
+        const text = String((translate ? result.translatedText : result.originalText) || '').trim();
         if (text && activeRef.current) setLines(previous => [...previous, text].slice(-3));
       } catch (err) {
         if (activeRef.current) {
@@ -123,6 +123,7 @@ const LiveCaptions = () => {
     const accepted = window.confirm('Live captions send meeting audio to Convo’s AI service for transcription. Audio is processed for captions and is not saved by Convo. Turn captions on only when everyone in the meeting knows.');
     if (!accepted) return;
     try {
+      if (typeof MediaRecorder === 'undefined') throw new Error('This browser does not support live audio captions.');
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextClass) throw new Error('This browser does not support live audio captions.');
       const context = new AudioContextClass();
