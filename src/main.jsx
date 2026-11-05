@@ -4,6 +4,7 @@ import { LiveKitRoom, VideoConference, useParticipants } from '@livekit/componen
 import '@livekit/components-styles';
 import './style.css';
 import MeetingRecorder from './MeetingRecorder.jsx';
+import LiveCaptions from './LiveCaptions.jsx';
 
 const RECORD_DB = 'meet-local-recordings';
 function openRecordDb() {
@@ -463,6 +464,7 @@ function App() {
       >
         <AutoSaveMeetingContacts currentName={name} onRemember={rememberContact} />
         <MeetingRecorder ref={recorderRef} onFinished={handleRecordingFinished} />
+        <LiveCaptions />
         <VideoConference />
       </LiveKitRoom>
     </div>;
