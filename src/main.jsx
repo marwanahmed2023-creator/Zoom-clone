@@ -139,7 +139,7 @@ function App() {
     if (!audioBlob.size) { setTranscriptStatus('unavailable'); return; }
     setTranscriptStatus('processing');
     try {
-      const response = await apiFetch('/api/transcribe?language=' + encodeURIComponent(language || 'ar'), {
+      const response = await apiFetch('/api/transcribe', {
         method: 'POST', headers: { 'Content-Type': audioBlob.type }, body: audioBlob
       });
       const result = await response.json();
