@@ -47,18 +47,7 @@ export async function onRequestPost({ request, env }) {
     });
     const originalText = String(result?.text || '').trim();
     if (!originalText) return json({ originalText: '', translatedText: '' });
-    let translatedText = originalText;
-    if (new URL(request.url).searchParams.get('translate') === '1') {
-      const translated = await env.AI.run('@cf/openai/gpt-oss-120b', {
-        messages: [
-          { role: 'system', content: 'Translate this short live meeting caption into clear, faithful English. The speech may mix Egyptian Arabic and English in the same sentence. Keep words already spoken in English unchanged. Translate only the non-English parts. Do not summarize, add meaning, or guess unclear words. Return only the caption in English.' },
-          { role: 'user', content: originalText }
-        ],
-        temperature: 0.1,
-        max_tokens: 300
-      });
-      translatedText = generatedText(translated) || originalText;
-    }
+    const translatedText = originalText;
     return json({ originalText, translatedText });
   } catch (error) {
     return json({ error: 'Caption AI error: ' + (error?.message || 'unknown error') }, 502);
