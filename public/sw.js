@@ -1,17 +1,34 @@
 self.addEventListener("push", event => {
-  let data = {};
-  try { data = event.data ? event.data.json() : {}; } catch {}
-  const title = data.title || "Incoming Meet call";
-  const options = {
-    body: data.body || "Someone is calling you.",
-    tag: "meet-incoming-call",
-    renotify: true,
-    // Ask the operating system to use its default notification sound.
-    // Web apps cannot choose or force a custom sound while closed.
-    silent: false,
-    data: { url: data.url || "/" }
-  };
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil((async () => {
+    let data = {};
+    try { data = event.data ? event.data.json() : {}; } catch {}
+    const room = String(data.room || "");
+    const callee = String(data.callee || "");
+    if (!room || !callee) return;
+
+    // Push can be delayed by the OS. Verify that the call is still ringing
+    // before showing anything, so a declined/cancelled call never resurfaces.
+    try {
+      const check = await fetch(
+        self.location.origin + "/api/call?type=incoming&identity=" + encodeURIComponent(callee),
+        { cache: "no-store" }
+      );
+      if (!check.ok) return;
+      const result = await check.json();
+      if (!(result.calls || []).some(call => call.room === room)) return;
+    } catch {
+      return;
+    }
+
+    await self.registration.showNotification(data.title || "Incoming Convo call", {
+      body: data.body || "Someone is calling you.",
+      tag: "meet-call-" + room,
+      renotify: false,
+      silent: false,
+      requireInteraction: true,
+      data: { url: data.url || "/", room }
+    });
+  })());
 });
 
 self.addEventListener("notificationclick", event => {
