@@ -343,3 +343,19 @@
   .live-caption-overlay { bottom:78px; width:calc(100% - 20px); }
   .live-caption-line { padding:6px 9px; font-size:13px; }
 }
+
+
+/* First-launch Android permission walkthrough */
+.permission-setup-backdrop{position:fixed;inset:0;z-index:10000;background:rgba(3,8,20,.82);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:18px;overflow-y:auto}
+.permission-setup-card{width:min(100%,520px);max-height:calc(100dvh - 36px);overflow-y:auto;background:#101a2c;border:1px solid rgba(137,170,255,.25);border-radius:22px;padding:24px;color:#f4f7ff;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.permission-setup-kicker{font-size:11px;letter-spacing:.16em;font-weight:800;color:#8baeff;margin-bottom:10px}
+.permission-setup-card h2{font-size:25px;line-height:1.15;margin:0 0 10px}
+.permission-setup-card>p{font-size:14px;line-height:1.55;color:#b9c5db;margin:0 0 18px}
+.permission-setup-step{padding:14px 0;border-top:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;gap:7px}
+.permission-setup-step strong{font-size:14px}
+.permission-setup-step span,.permission-setup-note{font-size:12px;line-height:1.5;color:#b9c5db}
+.permission-setup-step button{align-self:flex-start;border:0;border-radius:10px;padding:9px 13px;background:#315fe8;color:white;font-weight:700}
+.permission-setup-note{padding:12px;background:rgba(255,255,255,.055);border-radius:10px;margin-top:10px}
+.permission-setup-actions{display:flex;gap:10px;margin-top:16px}
+.permission-setup-actions button{flex:1;min-height:42px}
+.permission-setup-skip{display:block;margin:12px auto 0;background:transparent;border:0;color:#aebbd0;padding:8px}
