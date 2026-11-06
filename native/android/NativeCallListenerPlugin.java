@@ -21,6 +21,20 @@ import com.getcapacitor.annotation.*;
 )
 public class NativeCallListenerPlugin extends Plugin {
     @PluginMethod
+    public void requestStartupPermissions(PluginCall call) {
+        requestPermissionForAliases(new String[] { "notifications", "camera", "microphone" }, call, "startupPermissionsResult");
+    }
+
+    @PermissionCallback
+    private void startupPermissionsResult(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("notifications", getPermissionState("notifications") == PermissionState.GRANTED);
+        result.put("camera", getPermissionState("camera") == PermissionState.GRANTED);
+        result.put("microphone", getPermissionState("microphone") == PermissionState.GRANTED);
+        call.resolve(result);
+    }
+
+    @PluginMethod
     public void requestMediaPermissions(PluginCall call) {
         // Ask for both in one Android permission flow. A denied camera must not
         // prevent the user from joining with microphone-only access.
