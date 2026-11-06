@@ -5,6 +5,8 @@ import { RoomEvent } from 'livekit-client';
 import './live-captions.css';
 
 const SEGMENT_MS = 6000;
+const TARGET_RATE = 16000;
+const API_BASE = '';
 
 function roomAudioTracks(room) {
   const tracks = [];
@@ -17,6 +19,44 @@ function roomAudioTracks(room) {
   return tracks;
 }
 
+function encodeWav(chunks, sourceRate) {
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  if (!total) return null;
+  const input = new Float32Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { input.set(chunk, offset); offset += chunk.length; }
+  const outputLength = Math.max(1, Math.floor(input.length * TARGET_RATE / sourceRate));
+  const bytesPerSample = 2;
+  const buffer = new ArrayBuffer(44 + outputLength * bytesPerSample);
+  const view = new DataView(buffer);
+  const write = (position, value) => {
+    for (let i = 0; i < value.length; i++) view.setUint8(position + i, value.charCodeAt(i));
+  };
+  write(0, 'RIFF');
+  view.setUint32(4, 36 + outputLength * bytesPerSample, true);
+  write(8, 'WAVE');
+  write(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, TARGET_RATE, true);
+  view.setUint32(28, TARGET_RATE * bytesPerSample, true);
+  view.setUint16(32, bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  write(36, 'data');
+  view.setUint32(40, outputLength * bytesPerSample, true);
+  for (let i = 0; i < outputLength; i++) {
+    const position = i * sourceRate / TARGET_RATE;
+    const left = Math.floor(position);
+    const fraction = position - left;
+    const a = input[Math.min(left, input.length - 1)] || 0;
+    const b = input[Math.min(left + 1, input.length - 1)] || 0;
+    const sample = Math.max(-1, Math.min(1, a + (b - a) * fraction));
+    view.setInt16(44 + i * 2, sample < 0 ? sample * 32768 : sample * 32767, true);
+  }
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
 const LiveCaptions = () => {
   const room = useRoomContext();
   const [active, setActive] = React.useState(false);
@@ -27,9 +67,12 @@ const LiveCaptions = () => {
   const contextRef = React.useRef(null);
   const destinationRef = React.useRef(null);
   const sourcesRef = React.useRef(new Map());
-  const recorderRef = React.useRef(null);
+  const processorRef = React.useRef(null);
+  const monitorSourceRef = React.useRef(null);
+  const silentGainRef = React.useRef(null);
+  const segmentChunksRef = React.useRef(null);
+  const segmentResolveRef = React.useRef(null);
   const timerRef = React.useRef(0);
-
 
   const connectTracks = React.useCallback(() => {
     const context = contextRef.current;
@@ -48,10 +91,18 @@ const LiveCaptions = () => {
   const stopCaptions = React.useCallback(() => {
     activeRef.current = false;
     window.clearTimeout(timerRef.current);
-    try {
-      if (recorderRef.current?.state && recorderRef.current.state !== 'inactive') recorderRef.current.stop();
-    } catch {}
-    recorderRef.current = null;
+    segmentChunksRef.current = null;
+    if (segmentResolveRef.current) {
+      const resolve = segmentResolveRef.current;
+      segmentResolveRef.current = null;
+      resolve(null);
+    }
+    try { processorRef.current?.disconnect(); } catch {}
+    try { monitorSourceRef.current?.disconnect(); } catch {}
+    try { silentGainRef.current?.disconnect(); } catch {}
+    processorRef.current = null;
+    monitorSourceRef.current = null;
+    silentGainRef.current = null;
     try { sourcesRef.current.forEach(source => source.disconnect()); } catch {}
     sourcesRef.current.clear();
     try { contextRef.current?.close(); } catch {}
@@ -61,33 +112,15 @@ const LiveCaptions = () => {
   }, []);
 
   const captureSegment = React.useCallback(() => new Promise(resolve => {
-    const stream = destinationRef.current?.stream;
-    if (!stream || !activeRef.current) return resolve(null);
-    const mimeType = ['audio/webm;codecs=opus', 'audio/webm'].find(type => MediaRecorder.isTypeSupported(type));
-    if (!mimeType) return resolve(null);
-    let recorder;
-    try { recorder = new MediaRecorder(stream, { mimeType }); }
-    catch { return resolve(null); }
-    const parts = [];
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(timerRef.current);
-      recorderRef.current = null;
-      resolve(parts.length ? new Blob(parts, { type: mimeType }) : null);
-    };
-    recorder.ondataavailable = event => { if (event.data?.size) parts.push(event.data); };
-    recorder.onerror = finish;
-    recorder.onstop = finish;
-    recorderRef.current = recorder;
-    try {
-      recorder.start();
-      timerRef.current = window.setTimeout(() => {
-        try { if (recorder.state !== 'inactive') recorder.stop(); else finish(); }
-        catch { finish(); }
-      }, SEGMENT_MS);
-    } catch { finish(); }
+    if (!activeRef.current || !contextRef.current) return resolve(null);
+    segmentChunksRef.current = [];
+    segmentResolveRef.current = blob => resolve(blob);
+    timerRef.current = window.setTimeout(() => {
+      const chunks = segmentChunksRef.current || [];
+      segmentChunksRef.current = null;
+      segmentResolveRef.current = null;
+      resolve(encodeWav(chunks, contextRef.current?.sampleRate || TARGET_RATE));
+    }, SEGMENT_MS);
   }), []);
 
   const runCaptionLoop = React.useCallback(async () => {
@@ -96,10 +129,9 @@ const LiveCaptions = () => {
       if (!activeRef.current) break;
       if (!blob || blob.size < 1200) continue;
       try {
-        const translate = modeRef.current === 'english';
-        const response = await fetch('/api/live-caption' + (translate ? '?translate=1' : ''), {
+        const response = await fetch(API_BASE + '/api/live-caption', {
           method: 'POST',
-          headers: { 'Content-Type': blob.type || 'audio/webm' },
+          headers: { 'Content-Type': 'audio/wav' },
           body: blob
         });
         const result = await response.json().catch(() => ({}));
@@ -120,7 +152,6 @@ const LiveCaptions = () => {
     const accepted = window.confirm('Live captions send meeting audio to Convo’s AI service for transcription. Audio is processed for captions and is not saved by Convo. Turn captions on only when everyone in the meeting knows.');
     if (!accepted) return;
     try {
-      if (typeof MediaRecorder === 'undefined') throw new Error('This browser does not support live audio captions.');
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextClass) throw new Error('This browser does not support live audio captions.');
       const context = new AudioContextClass();
@@ -129,9 +160,22 @@ const LiveCaptions = () => {
       destinationRef.current = context.createMediaStreamDestination();
       sourcesRef.current = new Map();
       connectTracks();
-      if (!destinationRef.current.stream.getAudioTracks().length) {
-        // Tracks can arrive shortly after joining; the track events below attach them.
-      }
+
+      const monitorSource = context.createMediaStreamSource(destinationRef.current.stream);
+      const processor = context.createScriptProcessor(4096, 1, 1);
+      const silentGain = context.createGain();
+      silentGain.gain.value = 0;
+      processor.onaudioprocess = event => {
+        const chunks = segmentChunksRef.current;
+        if (activeRef.current && chunks) chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
+      };
+      monitorSource.connect(processor);
+      processor.connect(silentGain);
+      silentGain.connect(context.destination);
+      monitorSourceRef.current = monitorSource;
+      processorRef.current = processor;
+      silentGainRef.current = silentGain;
+
       activeRef.current = true;
       setError('');
       setLines([]);
