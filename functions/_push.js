@@ -11,8 +11,10 @@ export async function sendCallPush(env, callee, caller, room) {
         const subscription = JSON.parse(row.subscription_json);
         const payload = await buildPushPayload({
           data: JSON.stringify({
-            title: "Incoming Meet call",
+            title: "Incoming Convo call",
             body: caller + " is calling you.",
+            room,
+            callee,
             url: "/?incomingCall=" + encodeURIComponent(room)
           }),
           options: { ttl: 60 }
