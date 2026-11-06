@@ -9,6 +9,7 @@ s = s.replace('    <application', '''    <uses-permission android:name="android.
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application''', 1)
 if 'android:icon=' not in s:
@@ -29,4 +30,15 @@ service = '''
 '''
 if 'android:name=".CallListenerService"' not in s:
     s = s.replace(needle, needle + service, 1)
+if 'android:name=".IncomingCallActivity"' not in s:
+    s = s.replace('</application>', '''
+        <activity
+            android:name=".IncomingCallActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+    </application>''', 1)
 p.write_text(s)
