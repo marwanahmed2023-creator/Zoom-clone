@@ -29,6 +29,7 @@ public class CallListenerService extends Service {
     private String identity = "";
     private String activeRoom = "";
     private String activeCaller = "";
+    private String suppressedRoom = "";
     private MediaPlayer ringtone;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -52,10 +53,13 @@ public class CallListenerService extends Service {
                 startPolling();
             }
             String room = intent.getStringExtra("room");
+            if (ACTION_DECLINE.equals(action)) dismissCall(room);
+            else clearIncoming();
             respond(room, ACTION_ACCEPT.equals(action));
             return START_STICKY;
         }
         if (intent != null) identity = intent.getStringExtra("identity");
+        suppressedRoom = getSharedPreferences("meet_native_calls", 0).getString("dismissed_room", "");
         if (identity == null || identity.isEmpty()) {
             identity = getSharedPreferences("meet_native_calls", 0).getString("identity", "");
         } else {
@@ -118,19 +122,44 @@ public class CallListenerService extends Service {
             String body = readAll(connection.getInputStream());
             JSONArray calls = new JSONObject(body).optJSONArray("calls");
             if (calls == null || calls.length() == 0) {
+                suppressedRoom = "";
+                getSharedPreferences("meet_native_calls", 0).edit().remove("dismissed_room").apply();
                 if (!activeRoom.isEmpty()) clearIncoming();
                 return;
             }
-            JSONObject call = calls.getJSONObject(0);
-            String room = call.optString("room", "");
-            String caller = call.optString("caller", "Someone");
+
+            JSONObject nextCall = null;
+            boolean suppressedStillRinging = false;
+            for (int i = 0; i < calls.length(); i++) {
+                JSONObject candidate = calls.optJSONObject(i);
+                if (candidate == null) continue;
+                String candidateRoom = candidate.optString("room", "");
+                if (candidateRoom.isEmpty()) continue;
+                if (candidateRoom.equals(suppressedRoom)) {
+                    suppressedStillRinging = true;
+                    continue;
+                }
+                if (nextCall == null) nextCall = candidate;
+            }
+
+            if (!suppressedStillRinging && !suppressedRoom.isEmpty()) {
+                suppressedRoom = "";
+                getSharedPreferences("meet_native_calls", 0).edit().remove("dismissed_room").apply();
+            }
+            if (nextCall == null) {
+                if (!activeRoom.isEmpty()) clearIncoming();
+                return;
+            }
+
+            String room = nextCall.optString("room", "");
+            String caller = nextCall.optString("caller", "Someone");
             if (room.isEmpty()) return;
             if (!room.equals(activeRoom)) {
                 activeRoom = room;
                 activeCaller = caller;
                 startRingtone();
+                showIncomingNotification();
             }
-            showIncomingNotification();
         } catch (Exception ignored) {
         } finally {
             if (connection != null) connection.disconnect();
@@ -175,6 +204,10 @@ public class CallListenerService extends Service {
         Intent decline = new Intent(this, CallListenerService.class).setAction(ACTION_DECLINE).putExtra("room", activeRoom);
         PendingIntent acceptAction = PendingIntent.getService(this, 21, accept, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         PendingIntent declineAction = PendingIntent.getService(this, 22, decline, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Intent fullScreen = new Intent(this, IncomingCallActivity.class)
+            .putExtra("room", activeRoom).putExtra("caller", activeCaller)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent fullScreenAction = PendingIntent.getActivity(this, 23, fullScreen, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Notification notification = new NotificationCompat.Builder(this, CALL_CHANNEL)
             .setSmallIcon(android.R.drawable.sym_call_incoming)
             .setContentTitle(activeCaller + " is calling")
@@ -183,6 +216,8 @@ public class CallListenerService extends Service {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(tap)
+            .setFullScreenIntent(fullScreenAction, true)
+            .setOnlyAlertOnce(true)
             .setOngoing(false)
             .setAutoCancel(false)
             .addAction(android.R.drawable.sym_action_call, "Accept", acceptAction)
@@ -225,6 +260,13 @@ public class CallListenerService extends Service {
                 if (connection != null) connection.disconnect();
             }
         });
+    }
+
+    private void dismissCall(String room) {
+        if (room == null || room.isEmpty()) return;
+        suppressedRoom = room;
+        getSharedPreferences("meet_native_calls", 0).edit().putString("dismissed_room", room).apply();
+        if (room.equals(activeRoom)) clearIncoming();
     }
 
     private void clearIncoming() {
