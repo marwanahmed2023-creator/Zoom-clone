@@ -106,6 +106,9 @@ function App() {
   const [transcriptTab, setTranscriptTab] = React.useState('original');
   const [fullScreenCallAllowed, setFullScreenCallAllowed] = React.useState(true);
   const [batteryOptimizationIgnored, setBatteryOptimizationIgnored] = React.useState(true);
+  const [permissionSetupOpen, setPermissionSetupOpen] = React.useState(() => { try { return Capacitor.isNativePlatform() && localStorage.getItem('convo-permissions-onboarding-v1') !== 'done'; } catch { return Capacitor.isNativePlatform(); } });
+  const [startupPermissionResults, setStartupPermissionResults] = React.useState(null);
+  const [permissionSetupBusy, setPermissionSetupBusy] = React.useState(false);
   const recorderRef = React.useRef(null);
   const audioContextRef = React.useRef(null);
   const [mediaReady, setMediaReady] = React.useState(false);
@@ -499,13 +502,30 @@ function App() {
     };
   }, [name]);
 
+  async function requestStartupPermissions() {
+    setPermissionSetupBusy(true);
+    try { const result = await NativeCallListener.requestStartupPermissions(); setStartupPermissionResults(result || {}); if (!result?.microphone) setError('Microphone access is needed to join calls. You can enable it from Android app permissions later.'); }
+    catch (err) { setError(err.message || 'Could not request Android permissions.'); }
+    finally { setPermissionSetupBusy(false); }
+  }
+
+  async function refreshPermissionSetup() {
+    try { const values = await Promise.all([NativeCallListener.getFullScreenIntentStatus(), NativeCallListener.getBatteryOptimizationStatus()]); setFullScreenCallAllowed(Boolean(values[0]?.allowed)); setBatteryOptimizationIgnored(Boolean(values[1]?.ignored)); } catch {}
+  }
+
+  function finishPermissionSetup() {
+    try { localStorage.setItem('convo-permissions-onboarding-v1', 'done'); } catch {}
+    setPermissionSetupOpen(false); refreshPermissionSetup();
+    if (name.trim()) NativeCallListener.start({ identity: name.trim() }).catch(() => {});
+  }
+
   async function enableLockScreenCalls() {
-    try { await NativeCallListener.openFullScreenIntentSettings(); }
+    try { await NativeCallListener.openFullScreenIntentSettings(); window.setTimeout(refreshPermissionSetup, 1200); }
     catch (err) { setError(err.message || 'Could not open lock-screen call settings.'); }
   }
 
   async function enableBackgroundCalls() {
-    try { await NativeCallListener.requestBatteryOptimizationExemption(); }
+    try { await NativeCallListener.requestBatteryOptimizationExemption(); window.setTimeout(refreshPermissionSetup, 1200); }
     catch (err) { setError(err.message || 'Could not open background battery settings.'); }
   }
 
@@ -636,6 +656,19 @@ function App() {
     </section>
     <footer>CONVO · A simple place to connect <span>Built for conversations.</span></footer>
 
+    {Capacitor.isNativePlatform() && permissionSetupOpen && !token && !showTranscripts && <div className="permission-setup-backdrop" role="dialog" aria-modal="true" aria-labelledby="permission-setup-title">
+      <section className="permission-setup-card">
+        <div className="permission-setup-kicker">ONE-TIME SETUP</div>
+        <h2 id="permission-setup-title">Get Convo ready for calls</h2>
+        <p>Allow these once so calls can ring and meetings can use your camera and microphone. Android will show its own approval screens where required.</p>
+        <div className="permission-setup-step"><strong>1. Camera, microphone & notifications</strong><span>{startupPermissionResults ? 'Microphone: ' + (startupPermissionResults.microphone ? 'allowed' : 'not allowed') + ' · Camera: ' + (startupPermissionResults.camera ? 'allowed' : 'not allowed') + ' · Notifications: ' + (startupPermissionResults.notifications ? 'allowed' : 'not allowed') : 'Request the normal Android permissions together.'}</span><button type="button" onClick={requestStartupPermissions} disabled={permissionSetupBusy}>{permissionSetupBusy ? 'Please wait…' : 'Allow permissions'}</button></div>
+        <div className="permission-setup-step"><strong>2. Show calls over the lock screen</strong><span>{fullScreenCallAllowed ? 'Already allowed.' : 'Android may open a special access screen. Turn on full-screen notifications for Convo.'}</span>{!fullScreenCallAllowed && <button type="button" onClick={enableLockScreenCalls}>Open approval screen</button>}</div>
+        <div className="permission-setup-step"><strong>3. Keep call checking active in the background</strong><span>{batteryOptimizationIgnored ? 'Battery optimization is already disabled for Convo.' : 'Approve the battery-use prompt. This may use more battery while your screen is off.'}</span>{!batteryOptimizationIgnored && <button type="button" onClick={enableBackgroundCalls}>Allow background running</button>}</div>
+        <div className="permission-setup-note"><strong>Huawei phones:</strong> Android does not let Convo switch on Huawei’s Auto-launch, Secondary launch or Run in background controls automatically. If calls still fail while locked, Huawei may require those three switches in App launch settings.</div>
+        <div className="permission-setup-actions"><button type="button" className="secondary" onClick={refreshPermissionSetup}>Check permissions</button><button type="button" className="primary" onClick={finishPermissionSetup}>Finish setup</button></div>
+        <button type="button" className="permission-setup-skip" onClick={finishPermissionSetup}>Do this later</button>
+      </section>
+    </div>}
     {incoming && <div className="call-overlay">
       <div className="call-dialog">
         <div className="call-avatar">{incoming.caller?.slice(0,1).toUpperCase() || '?'}</div>
