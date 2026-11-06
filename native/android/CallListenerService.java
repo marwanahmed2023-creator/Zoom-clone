@@ -53,8 +53,7 @@ public class CallListenerService extends Service {
                 startPolling();
             }
             String room = intent.getStringExtra("room");
-            if (ACTION_DECLINE.equals(action)) dismissCall(room);
-            else clearIncoming();
+            dismissCall(room);
             respond(room, ACTION_ACCEPT.equals(action));
             return START_STICKY;
         }
