@@ -1,0 +1,43 @@
+.meet-recorder-host { display: flex; align-items: center; flex: 0 0 auto; }
+.meet-recorder-controls { display: flex; align-items: center; gap: 7px; }
+.meet-recorder-controls select {
+  max-width: 125px; min-width: 0; padding: 8px 7px; border: 1px solid #ffffff26;
+  border-radius: 7px; background: #252e40; color: #fff; font-size: 10px;
+}
+.meet-recorder-controls button {
+  border: 0; border-radius: 7px; padding: 10px 11px; color: #fff;
+  font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap; min-height: 42px;
+}
+.record-start { background: #d83c50; }
+.record-stop { background: #3b465a; }
+.recording-indicator { display: flex; align-items: center; gap: 6px; color: #fff; font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.recording-indicator i { width: 8px; height: 8px; border-radius: 50%; background: #ff455d; animation: record-pulse 1s infinite; }
+@keyframes record-pulse { 50% { opacity: .35; } }
+.previous-recording {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 14px; padding: 12px; border: 1px solid #dfe5f4;
+  border-radius: 10px; background: #f7f9ff;
+}
+.previous-recording strong { color: #26334b; font-size: 12px; }
+.previous-recording button {
+  border: 0; border-radius: 8px; padding: 10px 12px; background: #4169f5;
+  color: #fff; font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.transcript-ready { background: #f5fbf8; border-color: #dcefe5; }
+.transcript-ready button { background: #16845e; }
+.transcript-downloads { display: flex; flex-wrap: wrap; gap: 8px; }
+.transcript-downloads button { white-space: nowrap; }
+.transcript-status { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: #f3f6fc; color: #59657a; font-size: 11px; }
+@media(max-width:700px) {
+  .meet-recorder-controls { gap: 4px; }
+  .meet-recorder-controls select { max-width: 92px; padding: 7px 4px; font-size: 9px; }
+  .meet-recorder-controls button { padding: 8px 7px; font-size: 10px; min-height: 38px; }
+  .previous-recording { align-items: flex-start; flex-direction: column; }
+}
+
+.recording-notice {
+  position: fixed; z-index: 1199; top: 58px; left: 50%; transform: translateX(-50%);
+  max-width: calc(100vw - 24px); padding: 9px 14px; border: 1px solid #ff687766;
+  border-radius: 9px; background: #421f2aef; color: #fff;
+  font-size: 12px; font-weight: 700; text-align: center; box-shadow: 0 5px 18px #0003;
+}
