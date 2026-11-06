@@ -4,12 +4,59 @@ import { createRoot } from 'react-dom/client';
 import { LiveKitRoom, VideoConference, useParticipants } from '@livekit/components-react';
 import '@livekit/components-styles';
 import './style.css';
+import MeetingRecorder from './MeetingRecorder.jsx';
+import LiveCaptions from './LiveCaptions.jsx';
 
 const NativeCallListener = registerPlugin('NativeCallListener');
-
 function apiFetch(path, options) {
   const base = Capacitor.isNativePlatform() ? 'https://zoom-clone.pages.dev' : '';
   return fetch(base + path, options);
+}
+
+const RECORD_DB = 'meet-local-recordings';
+function openRecordDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(RECORD_DB, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('assets', { keyPath: 'key' });
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+async function saveRecordAsset(key, value) {
+  const db = await openRecordDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('assets', 'readwrite');
+    tx.objectStore('assets').put({ key, value });
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+async function readRecordAsset(key) {
+  const db = await openRecordDb();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction('assets', 'readonly').objectStore('assets').get(key);
+    request.onsuccess = () => { db.close(); resolve(request.result?.value ?? null); };
+    request.onerror = () => { db.close(); reject(request.error); };
+  });
+}
+async function deleteRecordAsset(key) {
+  const db = await openRecordDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('assets', 'readwrite');
+    tx.objectStore('assets').delete(key);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+function downloadLocalBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function AutoSaveMeetingContacts({ currentName, onRemember }) {
@@ -51,10 +98,70 @@ function App() {
   const [meetingError, setMeetingError] = React.useState('');
   const [notificationPermission, setNotificationPermission] = React.useState(() => typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
   const [pushReady, setPushReady] = React.useState(() => { try { return localStorage.getItem('meet-push-ready') === 'yes'; } catch { return false; } });
+  const [pendingVideo, setPendingVideo] = React.useState(null);
+  const [originalTranscriptText, setOriginalTranscriptText] = React.useState('');
+  const [translatedTranscriptText, setTranslatedTranscriptText] = React.useState('');
+  const [transcriptStatus, setTranscriptStatus] = React.useState('');
+  const [showTranscripts, setShowTranscripts] = React.useState(false);
+  const [transcriptTab, setTranscriptTab] = React.useState('original');
+  const [fullScreenCallAllowed, setFullScreenCallAllowed] = React.useState(true);
+  const recorderRef = React.useRef(null);
   const audioContextRef = React.useRef(null);
   const [mediaReady, setMediaReady] = React.useState(false);
   const leavingRef = React.useRef(false);
   const notifiedCallRef = React.useRef('');
+
+  React.useEffect(() => {
+    let active = true;
+    Promise.all([readRecordAsset('video'), readRecordAsset('originalTranscript'), readRecordAsset('translatedTranscript'), readRecordAsset('transcript')]).then(([video, original, translated, legacy]) => {
+      if (!active) return;
+      if (video) setPendingVideo(video);
+      if (original) setOriginalTranscriptText(original);
+      if (translated) setTranslatedTranscriptText(translated);
+      // Older saved transcripts were English translations, so keep them under that label.
+      if (!translated && legacy) setTranslatedTranscriptText(legacy);
+      if (original || translated || legacy) setTranscriptStatus('ready');
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const handleRecordingFinished = React.useCallback(async ({ videoBlob, audioChunks, language }) => {
+    if (videoBlob?.size) {
+      setPendingVideo(videoBlob);
+      try { await saveRecordAsset('video', videoBlob); }
+      catch { setError('The recording finished, but this browser could not save it locally. Download it before closing this page.'); }
+    }
+    const audioBlob = new Blob(audioChunks || [], { type: audioChunks?.[0]?.type || 'audio/webm' });
+    if (!audioBlob.size) { setTranscriptStatus('unavailable'); return; }
+    setTranscriptStatus('processing');
+    try {
+      const response = await apiFetch('/api/transcribe?language=' + encodeURIComponent(language || 'ar'), {
+        method: 'POST', headers: { 'Content-Type': audioBlob.type }, body: audioBlob
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Transcription could not be completed.');
+      const originalText = String(result.originalText || '').trim();
+      const translatedText = String(result.translatedText || '').trim();
+      if (!originalText && !translatedText) throw new Error('No speech was detected in the recording.');
+      setOriginalTranscriptText(originalText);
+      setTranslatedTranscriptText(translatedText);
+      setTranscriptStatus('ready');
+      await Promise.all([
+        saveRecordAsset('originalTranscript', originalText),
+        saveRecordAsset('translatedTranscript', translatedText)
+      ]);
+    } catch (err) {
+      setTranscriptStatus('error');
+      setError('The video was saved, but the transcript failed: ' + (err.message || 'Please try again later.'));
+    }
+  }, []);
+
+  function downloadPreviousMeeting() {
+    if (!pendingVideo) return;
+    downloadLocalBlob(pendingVideo, 'meet-previous-meeting.webm');
+    setPendingVideo(null);
+    deleteRecordAsset('video').catch(() => {});
+  }
 
   React.useEffect(() => {
     const unlockAudio = () => {
@@ -106,6 +213,22 @@ function App() {
       }
     } catch { setProfileSaved(false); }
   }, [name]);
+
+  React.useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let active = true;
+    const check = () => NativeCallListener.getFullScreenIntentStatus()
+      .then(result => { if (active) setFullScreenCallAllowed(Boolean(result?.allowed)); })
+      .catch(() => {});
+    check();
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!Capacitor.isNativePlatform() || !name.trim()) return;
@@ -164,8 +287,12 @@ function App() {
   }
 
 
-  function leaveMeeting() {
+  async function leaveMeeting() {
     leavingRef.current = true;
+    if (recorderRef.current?.isRecording()) {
+      setMeetingError('Finishing your recording…');
+      await recorderRef.current.stopAndFinalize();
+    }
     setToken('');
     setUrl('');
     setRoom('');
@@ -359,6 +486,11 @@ function App() {
     };
   }, [name]);
 
+  async function enableLockScreenCalls() {
+    try { await NativeCallListener.openFullScreenIntentSettings(); }
+    catch (err) { setError(err.message || 'Could not open lock-screen call settings.'); }
+  }
+
   async function showSharedScreenFullscreen() {
     const focusWrapper = document.querySelector('.lk-focus-layout-wrapper');
     const focusedScreen = focusWrapper?.querySelector('.lk-focus-layout .lk-participant-tile video');
@@ -373,7 +505,7 @@ function App() {
   if (token) {
     return <div className="meeting">
       <header className="meeting-head">
-        <div className="brand"><span className="brand-icon">m</span> meet<span className="live">LIVE</span></div>
+        <div className="brand"><img className="brand-icon" src="/brand-icon.svg" alt="" /> Convo<span className="live">LIVE</span></div>
         <div className="room-label">Meeting · {room}</div>
         <button className="screen-only" onClick={showSharedScreenFullscreen} title="Show only the shared screen">Screen only ⛶</button>
         <button className="leave" onClick={leaveMeeting}>Leave meeting</button>
@@ -387,23 +519,37 @@ function App() {
         onError={(err) => setMeetingError('LiveKit connection error: ' + (err?.name ? err.name + ': ' : '') + (err?.message || 'Unknown error'))}
         onMediaDeviceFailure={(failure, kind) => {
           const device = kind === 'videoinput' ? 'Camera' : kind === 'audioinput' ? 'Microphone' : 'Camera or microphone';
-          const detail = failure === 'DeviceInUse'
-            ? 'Android WebView could not start audio/video capture. This can be reported for a capture-start failure, not only when another app is using the device.'
-            : 'Check the Android app permission for this device.';
-          setMeetingError(device + ' access failed (' + (failure || 'unknown reason') + '). ' + detail + ' Leave and rejoin after closing any app using the device.');
+          setMeetingError(device + ' access failed (' + (failure || 'unknown reason') + '). Use the Allow camera & microphone button and check that the device is not blocked by the operating system or another app.');
         }}
         onDisconnected={() => {
           if (!leavingRef.current) setMeetingError('You were disconnected from the meeting. You can leave and rejoin from the home screen.');
         }}
       >
         <AutoSaveMeetingContacts currentName={name} onRemember={rememberContact} />
+        <MeetingRecorder ref={recorderRef} onFinished={handleRecordingFinished} />
+        <LiveCaptions />
         <VideoConference />
       </LiveKitRoom>
     </div>;
   }
 
+  if (showTranscripts) return <main className="transcript-page">
+    <nav><div className="brand"><img className="brand-icon" src="/brand-icon.svg" alt="" /> Convo</div><button className="transcript-back" onClick={() => setShowTranscripts(false)}>← Back to home</button></nav>
+    <section className="transcript-viewer">
+      <div className="transcript-heading"><span>YOUR MEETING</span><h1>Conversation transcripts</h1><p>Read the original conversation or its English translation.</p></div>
+      <div className="transcript-tabs">
+        {originalTranscriptText && <button className={transcriptTab === 'original' ? 'active' : ''} onClick={() => setTranscriptTab('original')}>Original transcript</button>}
+        {translatedTranscriptText && <button className={transcriptTab === 'english' ? 'active' : ''} onClick={() => setTranscriptTab('english')}>English translation</button>}
+      </div>
+      <article className="transcript-paper" dir={transcriptTab === 'english' ? 'ltr' : 'auto'}>
+        <h2>{transcriptTab === 'english' ? 'English translation' : 'Original transcript'}</h2>
+        <p>{transcriptTab === 'english' ? translatedTranscriptText : originalTranscriptText}</p>
+      </article>
+    </section>
+  </main>;
+
   return <main>
-    <nav><div className="brand"><span className="brand-icon">m</span> meet</div><span className="nav-note">Video meetings, made simple.</span></nav>
+    <nav><div className="brand"><img className="brand-icon" src="/brand-icon.svg" alt="" /> Convo</div><span className="nav-note">Video meetings, made simple.</span></nav>
     <section className="hero">
       <div className="hero-copy">
         <div className="eyebrow"><i/> SIMPLE. CLEAR. CONNECTED.</div>
@@ -412,7 +558,7 @@ function App() {
         <div className="pills"><span>✦ HD video</span><span>↗ Screen sharing</span><span>◉ In-meeting chat</span></div>
       </div>
       <div className="join-card">
-        <div className="card-mark">m</div>
+        <img className="card-mark" src="/brand-icon.svg" alt="Nexora" />
         <h2>Start a meeting</h2>
         <p className="card-sub">Your next conversation is one click away.</p>
         <div className="profile-label">
@@ -441,6 +587,15 @@ function App() {
           <input value={room} onChange={e=>setRoom(e.target.value)} placeholder="Enter a code or leave blank"/>
           <button className="secondary" disabled={busy}>Start / Join meeting <span>→</span></button>
         </form>
+        {pendingVideo && <div className="previous-recording"><strong>Your previous meeting is ready</strong><button type="button" onClick={downloadPreviousMeeting}>Download previous meeting ↓</button></div>}
+        {Capacitor.isNativePlatform() && !fullScreenCallAllowed && <div className="notification-row">
+          <div><strong>Lock-screen call screen</strong><span>Allow Convo to show incoming calls over your locked phone.</span></div>
+          <button type="button" onClick={enableLockScreenCalls}>Enable</button>
+        </div>}
+
+        {transcriptStatus === 'processing' && <div className="transcript-status">Preparing your transcript…</div>}
+        {transcriptStatus === 'ready' && (originalTranscriptText || translatedTranscriptText) && <div className="previous-recording transcript-ready"><strong>Meeting transcripts are ready</strong><button type="button" onClick={() => { setTranscriptTab(originalTranscriptText ? 'original' : 'english'); setShowTranscripts(true); }}>View transcripts →</button></div>}
+        {transcriptStatus === 'error' && <div className="transcript-status">Transcript could not be created. Your video recording is still available.</div>}
         {error&&<div className="error" role="alert">{error}</div>}
         {!Capacitor.isNativePlatform() && notificationPermission !== 'unsupported' && !pushReady && <div className="notification-row">
           <div><strong>Background call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Set up alerts when Meet is closed'}</span></div>
@@ -454,7 +609,7 @@ function App() {
       <div><b>02</b><strong>Share your screen</strong><span>Present tabs, windows or your screen.</span></div>
       <div><b>03</b><strong>Stay in sync</strong><span>Participant grid and meeting chat.</span></div>
     </section>
-    <footer>MEET · A simple place to connect <span>Built for conversations.</span></footer>
+    <footer>CONVO · A simple place to connect <span>Built for conversations.</span></footer>
 
     {incoming && <div className="call-overlay">
       <div className="call-dialog">
