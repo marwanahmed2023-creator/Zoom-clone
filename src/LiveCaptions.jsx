@@ -20,7 +20,6 @@ function roomAudioTracks(room) {
 const LiveCaptions = () => {
   const room = useRoomContext();
   const [active, setActive] = React.useState(false);
-  const [mode, setMode] = React.useState('original');
   const [lines, setLines] = React.useState([]);
   const [error, setError] = React.useState('');
   const [controlHost, setControlHost] = React.useState(null);
@@ -30,9 +29,7 @@ const LiveCaptions = () => {
   const sourcesRef = React.useRef(new Map());
   const recorderRef = React.useRef(null);
   const timerRef = React.useRef(0);
-  const modeRef = React.useRef(mode);
 
-  React.useEffect(() => { modeRef.current = mode; }, [mode]);
 
   const connectTracks = React.useCallback(() => {
     const context = contextRef.current;
@@ -107,7 +104,7 @@ const LiveCaptions = () => {
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.error || 'Live captions could not process this audio.');
-        const text = String((translate ? result.translatedText : result.originalText) || '').trim();
+        const text = String(result.originalText || '').trim();
         if (text && activeRef.current) setLines(previous => [...previous, text].slice(-3));
       } catch (err) {
         if (activeRef.current) {
@@ -188,17 +185,13 @@ const LiveCaptions = () => {
   return <>
     {controlHost && createPortal(
       <div className="live-caption-controls">
-        <select aria-label="Caption language" value={mode} onChange={event => setMode(event.target.value)} disabled={active}>
-          <option value="original">Original</option>
-          <option value="english">English</option>
-        </select>
         <button type="button" className={active ? 'captions-on' : 'captions-off'} onClick={active ? stopCaptions : startCaptions}>
           {active ? 'CC On' : 'CC'}
         </button>
       </div>,
       controlHost
     )}
-    {active && lines.length > 0 && <div className={'live-caption-overlay' + (mode === 'english' ? ' caption-english' : '')} aria-live="polite">
+    {active && lines.length > 0 && <div className="live-caption-overlay" aria-live="polite">
       {lines.map((line, index) => <div className="live-caption-line" key={index}>{line}</div>)}
     </div>}
     {active && <div className="live-caption-status">AI captions on · audio is being processed</div>}
