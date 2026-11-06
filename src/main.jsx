@@ -105,6 +105,7 @@ function App() {
   const [showTranscripts, setShowTranscripts] = React.useState(false);
   const [transcriptTab, setTranscriptTab] = React.useState('original');
   const [fullScreenCallAllowed, setFullScreenCallAllowed] = React.useState(true);
+  const [batteryOptimizationIgnored, setBatteryOptimizationIgnored] = React.useState(true);
   const recorderRef = React.useRef(null);
   const audioContextRef = React.useRef(null);
   const [mediaReady, setMediaReady] = React.useState(false);
@@ -217,9 +218,14 @@ function App() {
   React.useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     let active = true;
-    const check = () => NativeCallListener.getFullScreenIntentStatus()
-      .then(result => { if (active) setFullScreenCallAllowed(Boolean(result?.allowed)); })
-      .catch(() => {});
+    const check = () => {
+      NativeCallListener.getFullScreenIntentStatus()
+        .then(result => { if (active) setFullScreenCallAllowed(Boolean(result?.allowed)); })
+        .catch(() => {});
+      NativeCallListener.getBatteryOptimizationStatus()
+        .then(result => { if (active) setBatteryOptimizationIgnored(Boolean(result?.ignored)); })
+        .catch(() => {});
+    };
     check();
     window.addEventListener('focus', check);
     document.addEventListener('visibilitychange', check);
@@ -498,6 +504,11 @@ function App() {
     catch (err) { setError(err.message || 'Could not open lock-screen call settings.'); }
   }
 
+  async function enableBackgroundCalls() {
+    try { await NativeCallListener.requestBatteryOptimizationExemption(); }
+    catch (err) { setError(err.message || 'Could not open background battery settings.'); }
+  }
+
   async function showSharedScreenFullscreen() {
     const focusWrapper = document.querySelector('.lk-focus-layout-wrapper');
     const focusedScreen = focusWrapper?.querySelector('.lk-focus-layout .lk-participant-tile video');
@@ -607,6 +618,10 @@ function App() {
         {!Capacitor.isNativePlatform() && notificationPermission !== 'unsupported' && !pushReady && <div className="notification-row">
           <div><strong>Background call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Set up alerts when Meet is closed'}</span></div>
           <button type="button" onClick={enableNotifications}>{notificationPermission === 'granted' ? 'Finish setup' : 'Enable notifications'}</button>
+        </div>}
+        {Capacitor.isNativePlatform() && !batteryOptimizationIgnored && <div className="notification-row">
+          <div><strong>Keep calls working while locked</strong><span>Allow background operation. This can use extra battery while the screen is off.</span></div>
+          <button type="button" onClick={enableBackgroundCalls}>Allow</button>
         </div>}
         {Capacitor.isNativePlatform() && <div className="transcript-status">
           For reliable locked-screen calls on Huawei: Settings → Apps → App launch → Convo → Manage manually, then enable Auto-launch, Secondary launch and Run in background. Also set Battery optimization to “Don’t allow” and lock Convo in Recent apps.
