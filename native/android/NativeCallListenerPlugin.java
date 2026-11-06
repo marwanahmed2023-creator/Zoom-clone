@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.app.NotificationManager;
 import android.net.Uri;
 import android.provider.Settings;
+import android.os.PowerManager;
 import android.os.Build;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.*;
@@ -54,6 +55,33 @@ public class NativeCallListenerPlugin extends Plugin {
             NotificationManager manager = getContext().getSystemService(NotificationManager.class);
             if (manager == null || !manager.canUseFullScreenIntent()) {
                 Intent settings = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT);
+                settings.setData(Uri.parse("package:" + getContext().getPackageName()));
+                settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(settings);
+            }
+        }
+        call.resolve();
+    }
+
+
+    @PluginMethod
+    public void getBatteryOptimizationStatus(PluginCall call) {
+        boolean ignored = true;
+        if (Build.VERSION.SDK_INT >= 23) {
+            PowerManager manager = getContext().getSystemService(PowerManager.class);
+            ignored = manager != null && manager.isIgnoringBatteryOptimizations(getContext().getPackageName());
+        }
+        JSObject result = new JSObject();
+        result.put("ignored", ignored);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void requestBatteryOptimizationExemption(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= 23) {
+            PowerManager manager = getContext().getSystemService(PowerManager.class);
+            if (manager != null && !manager.isIgnoringBatteryOptimizations(getContext().getPackageName())) {
+                Intent settings = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
                 settings.setData(Uri.parse("package:" + getContext().getPackageName()));
                 settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 getContext().startActivity(settings);
