@@ -608,6 +608,9 @@ function App() {
           <div><strong>Background call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Set up alerts when Meet is closed'}</span></div>
           <button type="button" onClick={enableNotifications}>{notificationPermission === 'granted' ? 'Finish setup' : 'Enable notifications'}</button>
         </div>}
+        {Capacitor.isNativePlatform() && <div className="transcript-status">
+          For reliable locked-screen calls on Huawei: Settings → Apps → App launch → Convo → Manage manually, then enable Auto-launch, Secondary launch and Run in background. Also set Battery optimization to “Don’t allow” and lock Convo in Recent apps.
+        </div>}
         <div className="secure">Your name is remembered on this device. No password or account needed.</div>
       </div>
     </section>
