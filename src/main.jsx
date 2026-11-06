@@ -241,6 +241,7 @@ function App() {
 
   React.useEffect(() => {
     if (!Capacitor.isNativePlatform() || !name.trim()) return;
+    try { if (localStorage.getItem('convo-permissions-onboarding-v1') !== 'done') return; } catch { return; }
     let active = true;
     const timer = window.setTimeout(() => {
       NativeCallListener.start({ identity: name.trim() })
