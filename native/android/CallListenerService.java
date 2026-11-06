@@ -72,12 +72,12 @@ public class CallListenerService extends Service {
     private void createChannels() {
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager == null || Build.VERSION.SDK_INT < 26) return;
-        NotificationChannel idle = new NotificationChannel(IDLE_CHANNEL, "Meet call listener", NotificationManager.IMPORTANCE_LOW);
+        NotificationChannel idle = new NotificationChannel(IDLE_CHANNEL, "Convo call listener", NotificationManager.IMPORTANCE_LOW);
         idle.setDescription("Background connection used to receive Meet calls");
         idle.setSound(null, null);
         manager.createNotificationChannel(idle);
-        NotificationChannel calls = new NotificationChannel(CALL_CHANNEL, "Incoming Meet calls", NotificationManager.IMPORTANCE_HIGH);
-        calls.setDescription("Ringing alerts for incoming Meet calls");
+        NotificationChannel calls = new NotificationChannel(CALL_CHANNEL, "Incoming Convo calls", NotificationManager.IMPORTANCE_HIGH);
+        calls.setDescription("Ringing alerts for incoming Convo calls");
         calls.setSound(null, null);
         calls.enableVibration(true);
         calls.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
@@ -91,7 +91,7 @@ public class CallListenerService extends Service {
         PendingIntent stopAction = PendingIntent.getService(this, 11, stop, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new NotificationCompat.Builder(this, IDLE_CHANNEL)
             .setSmallIcon(android.R.drawable.sym_call_incoming)
-            .setContentTitle("Meet is ready for calls")
+            .setContentTitle("Convo is ready for calls")
             .setContentText("Listening for incoming calls")
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(tap)
