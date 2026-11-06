@@ -18,36 +18,19 @@ import com.getcapacitor.annotation.*;
 public class NativeCallListenerPlugin extends Plugin {
     @PluginMethod
     public void requestMediaPermissions(PluginCall call) {
-        if (getPermissionState("camera") != PermissionState.GRANTED) {
-            requestPermissionForAlias("camera", call, "requestMicrophonePermission");
-            return;
-        }
-        requestMicrophonePermission(call);
-    }
-
-    @PermissionCallback
-    private void requestMicrophonePermission(PluginCall call) {
-        if (getPermissionState("camera") != PermissionState.GRANTED) {
-            call.reject("Camera permission was not granted.");
-            return;
-        }
-        if (getPermissionState("microphone") != PermissionState.GRANTED) {
-            requestPermissionForAlias("microphone", call, "mediaPermissionsResult");
-            return;
-        }
-        call.resolve();
+        // Ask for both in one Android permission flow. A denied camera must not
+        // prevent the user from joining with microphone-only access.
+        requestPermissionForAliases(new String[] { "camera", "microphone" }, call, "mediaPermissionsResult");
     }
 
     @PermissionCallback
     private void mediaPermissionsResult(PluginCall call) {
-        if (getPermissionState("camera") == PermissionState.GRANTED &&
-            getPermissionState("microphone") == PermissionState.GRANTED) {
+        if (getPermissionState("microphone") == PermissionState.GRANTED) {
             call.resolve();
         } else {
-            call.reject("Camera and microphone permissions are required to join a meeting.");
+            call.reject("Microphone permission was not granted. Allow Convo to use the microphone in Android app settings.");
         }
     }
-
 
     @PluginMethod
     public void start(PluginCall call) {
