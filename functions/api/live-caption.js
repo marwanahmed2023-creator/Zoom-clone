@@ -19,6 +19,14 @@ function generatedText(result) {
   return '';
 }
 
+async function toBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + 0x8000, bytes.length)));
+  }
+  return btoa(binary);
+}
 export async function onRequestPost({ request, env }) {
   if (!env.AI || typeof env.AI.run !== 'function') return json({ error: 'AI captions are not configured.' }, 503);
   const audio = await request.arrayBuffer();
