@@ -33,7 +33,6 @@ function drawCover(ctx, video, x, y, width, height) {
 const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }, ref) {
   const room = useRoomContext();
   const [recording, setRecording] = React.useState(false);
-  const [language, setLanguage] = React.useState('ar');
   const [elapsed, setElapsed] = React.useState(0);
   const [remoteRecording, setRemoteRecording] = React.useState(null);
   const [controlHost, setControlHost] = React.useState(null);
@@ -50,7 +49,6 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
   const startedAtRef = React.useRef(0);
   const stopPromiseRef = React.useRef(null);
   const resolveStopRef = React.useRef(null);
-  const languageRef = React.useRef(language);
   const broadcastRecording = React.useCallback(active => {
     const payload = new TextEncoder().encode(JSON.stringify({
       type: 'meet-recording-state', active,
@@ -59,7 +57,6 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
     room.localParticipant.publishData(payload, { reliable: true }).catch(() => {});
   }, [room]);
 
-  React.useEffect(() => { languageRef.current = language; }, [language]);
 
   React.useEffect(() => {
     let host = null;
@@ -185,9 +182,8 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
       broadcastRecording(false);
       const videoBlob = new Blob(videoChunksRef.current, { type: videoMime });
       const audioChunks = [...audioChunksRef.current];
-      const selectedLanguage = languageRef.current;
       cleanup();
-      onFinished?.({ videoBlob, audioChunks, language: selectedLanguage });
+      onFinished?.({ videoBlob, audioChunks, language: 'auto' });
       resolveStopRef.current?.();
       resolveStopRef.current = null;
       stopPromiseRef.current = null;
@@ -289,12 +285,6 @@ const MeetingRecorder = React.forwardRef(function MeetingRecorder({ onFinished }
         <span className="recording-indicator"><i/> REC {formatTime(elapsed)}</span>
         <button type="button" className="record-stop" onClick={finishRecording}>Stop</button>
       </> : <>
-        <select aria-label="Transcript language" value={language} onChange={event => setLanguage(event.target.value)}>
-          <option value="ar">Egyptian Arabic</option>
-          <option value="en">English</option>
-          <option value="zh">Chinese</option>
-          <option value="ja">Japanese</option>
-        </select>
         <button type="button" className="record-start" onClick={() => startRecording().catch(error => window.alert(error.message))}>● Record</button>
       </>}
     </div>, controlHost)}
