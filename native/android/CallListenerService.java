@@ -32,10 +32,60 @@ public class CallListenerService extends Service {
     private String suppressedRoom = "";
     private MediaPlayer ringtone;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private PowerManager.WakeLock screenOffWakeLock;
+    private boolean screenReceiverRegistered = false;
+    private final BroadcastReceiver screenStateReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            updateScreenWakeLock();
+        }
+    };
 
     @Override public void onCreate() {
         super.onCreate();
         createChannels();
+        registerScreenStateReceiver();
+    }
+
+    private void registerScreenStateReceiver() {
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        filter.addAction(Intent.ACTION_SCREEN_ON);
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(screenStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(screenStateReceiver, filter);
+            }
+            screenReceiverRegistered = true;
+        } catch (Exception ignored) {}
+        updateScreenWakeLock();
+    }
+
+    // Keep the call-checking thread awake only while the display is off, and
+    // only after the user has opted out of battery optimization for Convo.
+    private void updateScreenWakeLock() {
+        PowerManager manager = getSystemService(PowerManager.class);
+        if (manager == null) return;
+        boolean exempt = Build.VERSION.SDK_INT < 23 ||
+            manager.isIgnoringBatteryOptimizations(getPackageName());
+        boolean shouldHold = !manager.isInteractive() && exempt;
+        if (shouldHold) {
+            try {
+                if (screenOffWakeLock == null) {
+                    screenOffWakeLock = manager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Convo:CallListener");
+                    screenOffWakeLock.setReferenceCounted(false);
+                }
+                if (!screenOffWakeLock.isHeld()) screenOffWakeLock.acquire();
+            } catch (Exception ignored) {}
+        } else {
+            releaseScreenWakeLock();
+        }
+    }
+
+    private void releaseScreenWakeLock() {
+        try {
+            if (screenOffWakeLock != null && screenOffWakeLock.isHeld()) screenOffWakeLock.release();
+        } catch (Exception ignored) {}
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
@@ -281,6 +331,7 @@ public class CallListenerService extends Service {
 
     private void stopListener() {
         stopRingtone();
+        releaseScreenWakeLock();
         if (worker != null) { worker.shutdownNow(); worker = null; }
         stopForeground(true);
         stopSelf();
@@ -288,6 +339,11 @@ public class CallListenerService extends Service {
 
     @Override public void onDestroy() {
         stopRingtone();
+        releaseScreenWakeLock();
+        if (screenReceiverRegistered) {
+            try { unregisterReceiver(screenStateReceiver); } catch (Exception ignored) {}
+            screenReceiverRegistered = false;
+        }
         if (worker != null) worker.shutdownNow();
         super.onDestroy();
     }
