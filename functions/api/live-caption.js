@@ -34,7 +34,7 @@ export async function onRequestPost({ request, env }) {
   if (!audio.byteLength) return json({ error: 'No audio was received.' }, 400);
   if (audio.byteLength > 2 * 1024 * 1024) return json({ error: 'The audio segment was too large.' }, 413);
   const type = request.headers.get('content-type') || '';
-  if (!/audio\//i.test(type) && !/webm|ogg|wav|mp4/i.test(type)) return json({ error: 'Unsupported audio format.' }, 415);
+  if (!/^audio\/(wav|x-wav)(;|$)/i.test(type)) return json({ error: 'Expected PCM WAV audio from the caption recorder.' }, 415);
 
   try {
     const base64 = await toBase64(audio);
