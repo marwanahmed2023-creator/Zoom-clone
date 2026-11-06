@@ -37,6 +37,7 @@ jobs:
         run: |
           mkdir -p android/app/src/main/java/com/meet/app
           cp native/android/MainActivity.java android/app/src/main/java/com/meet/app/MainActivity.java
+          cp native/android/IncomingCallActivity.java android/app/src/main/java/com/meet/app/IncomingCallActivity.java
           cp native/android/NativeCallListenerPlugin.java android/app/src/main/java/com/meet/app/NativeCallListenerPlugin.java
           cp native/android/CallListenerService.java android/app/src/main/java/com/meet/app/CallListenerService.java
           python3 native/android/patch_manifest.py
