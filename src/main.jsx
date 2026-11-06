@@ -351,6 +351,12 @@ function App() {
     if (!incoming || busy) return;
     const call = incoming;
     setError('');
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(async registration => {
+        const notices = await registration.getNotifications({ tag: 'meet-call-' + call.room });
+        notices.forEach(notice => notice.close());
+      }).catch(() => {});
+    }
     if (!accept) dismissIncomingCall(call.room);
     setBusy(true);
     try {
@@ -379,11 +385,12 @@ function App() {
       try {
         const r = await fetch('/api/call?type=incoming&identity=' + encodeURIComponent(name.trim()), { cache: 'no-store' });
         const d = await r.json();
-        if (active && r.ok && d.calls?.length) {
-          const nextCall = d.calls.find(call => !dismissedCalls.includes(call.room));
+        if (active && r.ok) {
+          const nextCall = (d.calls || []).find(call => !dismissedCalls.includes(call.room));
           if (nextCall) {
-            setIncoming(nextCall);
-
+            setIncoming(current => current?.room === nextCall.room ? current : nextCall);
+          } else {
+            setIncoming(current => current && !(d.calls || []).some(call => call.room === current.room) ? null : current);
           }
         }
       } catch {}
