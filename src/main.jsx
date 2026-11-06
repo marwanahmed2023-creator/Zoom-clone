@@ -627,11 +627,6 @@ function App() {
           <button className="secondary" disabled={busy}>Start / Join meeting <span>→</span></button>
         </form>
         {pendingVideo && <div className="previous-recording"><strong>Your previous meeting is ready</strong><button type="button" onClick={downloadPreviousMeeting}>Download previous meeting ↓</button></div>}
-        {Capacitor.isNativePlatform() && !fullScreenCallAllowed && <div className="notification-row">
-          <div><strong>Lock-screen call screen</strong><span>Allow Convo to show incoming calls over your locked phone.</span></div>
-          <button type="button" onClick={enableLockScreenCalls}>Enable</button>
-        </div>}
-
         {transcriptStatus === 'processing' && <div className="transcript-status">Preparing your transcript…</div>}
         {transcriptStatus === 'ready' && (originalTranscriptText || translatedTranscriptText) && <div className="previous-recording transcript-ready"><strong>Meeting transcripts are ready</strong><button type="button" onClick={() => { setTranscriptTab(originalTranscriptText ? 'original' : 'english'); setShowTranscripts(true); }}>View transcripts →</button></div>}
         {transcriptStatus === 'error' && <div className="transcript-status">Transcript could not be created. Your video recording is still available.</div>}
@@ -639,13 +634,6 @@ function App() {
         {!Capacitor.isNativePlatform() && notificationPermission !== 'unsupported' && !pushReady && <div className="notification-row">
           <div><strong>Background call alerts</strong><span>{notificationPermission === 'denied' ? 'Blocked in browser settings' : 'Set up alerts when Meet is closed'}</span></div>
           <button type="button" onClick={enableNotifications}>{notificationPermission === 'granted' ? 'Finish setup' : 'Enable notifications'}</button>
-        </div>}
-        {Capacitor.isNativePlatform() && !batteryOptimizationIgnored && <div className="notification-row">
-          <div><strong>Keep calls working while locked</strong><span>Allow background operation. This can use extra battery while the screen is off.</span></div>
-          <button type="button" onClick={enableBackgroundCalls}>Allow</button>
-        </div>}
-        {Capacitor.isNativePlatform() && <div className="transcript-status">
-          For reliable locked-screen calls on Huawei: Settings → Apps → App launch → Convo → Manage manually, then enable Auto-launch, Secondary launch and Run in background. Also set Battery optimization to “Don’t allow” and lock Convo in Recent apps.
         </div>}
         <div className="secure">Your name is remembered on this device. No password or account needed.</div>
       </div>
