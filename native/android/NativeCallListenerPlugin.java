@@ -2,6 +2,9 @@ package com.meet.app;
 
 import android.Manifest;
 import android.content.Intent;
+import android.app.NotificationManager;
+import android.net.Uri;
+import android.provider.Settings;
 import android.os.Build;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.*;
@@ -30,6 +33,33 @@ public class NativeCallListenerPlugin extends Plugin {
         } else {
             call.reject("Microphone permission was not granted. Allow Convo to use the microphone in Android app settings.");
         }
+    }
+
+
+    @PluginMethod
+    public void getFullScreenIntentStatus(PluginCall call) {
+        boolean allowed = true;
+        if (Build.VERSION.SDK_INT >= 34) {
+            NotificationManager manager = getContext().getSystemService(NotificationManager.class);
+            allowed = manager != null && manager.canUseFullScreenIntent();
+        }
+        JSObject result = new JSObject();
+        result.put("allowed", allowed);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void openFullScreenIntentSettings(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= 34) {
+            NotificationManager manager = getContext().getSystemService(NotificationManager.class);
+            if (manager == null || !manager.canUseFullScreenIntent()) {
+                Intent settings = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT);
+                settings.setData(Uri.parse("package:" + getContext().getPackageName()));
+                settings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(settings);
+            }
+        }
+        call.resolve();
     }
 
     @PluginMethod
