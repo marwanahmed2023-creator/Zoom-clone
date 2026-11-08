@@ -194,6 +194,33 @@ function App() {
   }, [incoming]);
 
   React.useEffect(() => {
+    if (callMode?.role !== 'outgoing') return;
+    let stopped = false;
+    const playOutgoingTone = () => {
+      const ctx = audioContextRef.current;
+      if (!ctx || ctx.state !== 'running' || stopped) return;
+      const now = ctx.currentTime;
+      [440, 554, 440].forEach((frequency, index) => {
+        const start = now + index * 0.24;
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.10, start + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.19);
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start(start);
+        oscillator.stop(start + 0.20);
+      });
+    };
+    playOutgoingTone();
+    const timer = window.setInterval(playOutgoingTone, 1900);
+    return () => { stopped = true; window.clearInterval(timer); };
+  }, [callMode?.role, callMode?.room]);
+
+  React.useEffect(() => {
     try {
       const cleanName = name.trim();
       if (cleanName) {
