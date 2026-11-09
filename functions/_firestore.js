@@ -1,7 +1,7 @@
 function base64UrlBytes(bytes) {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/=/g, "").replace(/\\+/g, "-").replace(/\\//g, "_");
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
 function base64UrlJson(value) {
@@ -9,7 +9,7 @@ function base64UrlJson(value) {
 }
 
 function pemToBytes(pem) {
-  const base64 = pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\\s/g, "");
+  const base64 = pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, "");
   const binary = atob(base64);
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
