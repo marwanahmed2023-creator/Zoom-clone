@@ -25,7 +25,7 @@ export async function onRequestPost({ request, env }) {
 
     const { request: firestore } = await firestoreClient(env);
     const id = await subscriptionId(subscription.endpoint);
-    const mask = ["identity_key", "endpoint", "subscription_json", "created_at"]
+    const mask = ["identity_key", "endpoint", "subscription_json", "created_at", "site_origin"]
       .map((field) => "updateMask.fieldPaths=" + encodeURIComponent(field))
       .join("&");
 
@@ -34,6 +34,7 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify({
         fields: {
           identity_key: { stringValue: identity.toLowerCase() },
+          site_origin: { stringValue: new URL(request.url).origin },
           endpoint: { stringValue: subscription.endpoint },
           subscription_json: { stringValue: JSON.stringify(subscription) },
           created_at: { integerValue: String(Date.now()) }
