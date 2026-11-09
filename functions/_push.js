@@ -27,6 +27,9 @@ export async function sendCallPush(env, callee, caller, room) {
       if (!document?.fields) continue;
 
       const fields = document.fields;
+      const siteOrigin = fields.site_origin?.stringValue;
+      if (siteOrigin !== "https://zoom-clone.pages.dev") continue;
+
       const endpoint = fields.endpoint?.stringValue;
       const rawSubscription = fields.subscription_json?.stringValue;
       if (!endpoint || !rawSubscription) continue;
